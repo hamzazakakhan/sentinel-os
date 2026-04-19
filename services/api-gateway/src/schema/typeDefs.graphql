@@ -1,0 +1,1557 @@
+scalar DateTime
+scalar JSON
+scalar UUID
+scalar GeoJSON
+scalar Upload
+scalar BigInt
+scalar Void
+
+# ══════════════════════════════════════════════════════════════
+# ENUMS
+# ══════════════════════════════════════════════════════════════
+
+enum ClassificationLevel {
+  UNCLASSIFIED
+  CONFIDENTIAL
+  SECRET
+  TOP_SECRET
+  SCI
+}
+
+enum DomainType {
+  LAND
+  AIR
+  SEA
+  CYBER
+  SPACE
+  INTELLIGENCE
+  OSINT
+}
+
+enum ThreatSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFORMATIONAL
+}
+
+enum AlertStatus {
+  NEW
+  ACKNOWLEDGED
+  INVESTIGATING
+  ESCALATED
+  RESOLVED
+  FALSE_POSITIVE
+  CLOSED
+}
+
+enum SensorType {
+  CCTV
+  DRONE
+  RADAR
+  IOT
+  ACOUSTIC
+  SEISMIC
+  RF
+  LIDAR
+  THERMAL
+  SATELLITE
+}
+
+enum SensorStatus {
+  ONLINE
+  OFFLINE
+  DEGRADED
+  MAINTENANCE
+  DECOMMISSIONED
+}
+
+enum MissionStatus {
+  PLANNED
+  BRIEFED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ABORTED
+  ARCHIVED
+}
+
+enum TaskStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  AWAITING_APPROVAL
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum TaskPriority {
+  FLASH
+  IMMEDIATE
+  PRIORITY
+  ROUTINE
+  DEFERRED
+}
+
+enum ResponseActionType {
+  BLOCK_IP
+  ISOLATE_HOST
+  QUARANTINE_FILE
+  DISABLE_ACCOUNT
+  ALERT_OPERATOR
+  DISPATCH_UNIT
+  LOCK_PERIMETER
+  ACTIVATE_COUNTERMEASURE
+  ESCALATE
+  LOG_ONLY
+  CUSTOM
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  AUTO_APPROVED
+}
+
+enum UserRole {
+  SYSTEM_ADMIN
+  SECURITY_ADMIN
+  ANALYST
+  OPERATOR
+  COMMANDER
+  INTELLIGENCE_OFFICER
+  CYBER_OPERATOR
+  OSINT_ANALYST
+  AUDITOR
+  VIEWER
+  API_SERVICE
+}
+
+enum ModelStatus {
+  TRAINING
+  VALIDATING
+  ACTIVE
+  DEGRADED
+  RETIRED
+  ROLLED_BACK
+}
+
+enum SourceReliability {
+  A_RELIABLE
+  B_USUALLY_RELIABLE
+  C_FAIRLY_RELIABLE
+  D_NOT_USUALLY_RELIABLE
+  E_UNRELIABLE
+  F_CANNOT_BE_JUDGED
+}
+
+enum SortDirection {
+  ASC
+  DESC
+}
+
+enum OsintSourceType {
+  TWITTER
+  TELEGRAM
+  REDDIT
+  NEWS_RSS
+  NEWS_API
+  DARK_WEB
+  PASTE_SITE
+  FORUM
+  BLOG
+  GOVERNMENT_BULLETIN
+}
+
+enum OllamaPromptType {
+  THREAT_INVESTIGATION
+  INTELLIGENCE_SUMMARY
+  NATURAL_LANGUAGE_QUERY
+  ENTITY_EXTRACTION
+  MISINFORMATION_DETECTION
+  DECISION_SUPPORT
+  REPORT_GENERATION
+}
+
+# ══════════════════════════════════════════════════════════════
+# COMMON TYPES
+# ══════════════════════════════════════════════════════════════
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+  totalCount: Int!
+}
+
+type GeoPoint {
+  latitude: Float!
+  longitude: Float!
+  altitude: Float
+}
+
+type BoundingBox {
+  x: Float!
+  y: Float!
+  width: Float!
+  height: Float!
+  label: String!
+  confidence: Float!
+}
+
+type TimeRange {
+  start: DateTime!
+  end: DateTime!
+}
+
+type AuditInfo {
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  createdBy: User
+  updatedBy: User
+}
+
+# ══════════════════════════════════════════════════════════════
+# ORGANIZATION
+# ══════════════════════════════════════════════════════════════
+
+type Organization {
+  id: UUID!
+  name: String!
+  shortCode: String!
+  parentOrg: Organization
+  childOrgs: [Organization!]!
+  classificationCeiling: ClassificationLevel!
+  countryCode: String!
+  isActive: Boolean!
+  users(first: Int, after: String, role: UserRole): UserConnection!
+  sensors(first: Int, after: String): SensorConnection!
+  metadata: JSON
+  audit: AuditInfo!
+}
+
+# ══════════════════════════════════════════════════════════════
+# USER & AUTH
+# ══════════════════════════════════════════════════════════════
+
+type User {
+  id: UUID!
+  organization: Organization!
+  username: String!
+  email: String!
+  role: UserRole!
+  clearanceLevel: ClassificationLevel!
+  isActive: Boolean!
+  mfaEnabled: Boolean!
+  lastLoginAt: DateTime
+  lastLoginIp: String
+  metadata: JSON
+  audit: AuditInfo!
+}
+
+type UserConnection {
+  edges: [UserEdge!]!
+  pageInfo: PageInfo!
+}
+
+type UserEdge {
+  cursor: String!
+  node: User!
+}
+
+type AuthPayload {
+  accessToken: String!
+  refreshToken: String!
+  expiresIn: Int!
+  user: User!
+  requiresMfa: Boolean!
+}
+
+type MfaSetupPayload {
+  secret: String!
+  qrCodeUri: String!
+  recoveryCodes: [String!]!
+}
+
+# ══════════════════════════════════════════════════════════════
+# SENSORS & DEVICES
+# ══════════════════════════════════════════════════════════════
+
+type Sensor {
+  id: UUID!
+  organization: Organization!
+  name: String!
+  sensorType: SensorType!
+  status: SensorStatus!
+  domain: DomainType!
+  location: GeoPoint
+  heading: Float
+  fieldOfView: Float
+  range: Float
+  connectionUri: String
+  connectionProtocol: String
+  edgeNode: EdgeNode
+  firmwareVersion: String
+  lastHeartbeatAt: DateTime
+  calibrationData: JSON
+  classification: ClassificationLevel!
+  recentDetections(first: Int): [Detection!]!
+  metadata: JSON
+  audit: AuditInfo!
+}
+
+type SensorConnection {
+  edges: [SensorEdge!]!
+  pageInfo: PageInfo!
+}
+
+type SensorEdge {
+  cursor: String!
+  node: Sensor!
+}
+
+type EdgeNode {
+  id: UUID!
+  organization: Organization!
+  hostname: String!
+  ipAddress: String!
+  location: GeoPoint
+  capabilities: JSON
+  gpuAvailable: Boolean!
+  status: SensorStatus!
+  lastHeartbeatAt: DateTime
+  sensors: [Sensor!]!
+  resourceUsage: JSON
+  audit: AuditInfo!
+}
+
+# ══════════════════════════════════════════════════════════════
+# DETECTIONS
+# ══════════════════════════════════════════════════════════════
+
+type Detection {
+  id: UUID!
+  sensor: Sensor!
+  domain: DomainType!
+  detectionType: String!
+  confidence: Float!
+  location: GeoPoint
+  boundingBox: BoundingBox
+  rawDataRef: String
+  model: AIModel
+  modelVersion: String
+  attributes: JSON
+  classification: ClassificationLevel!
+  detectedAt: DateTime!
+  ingestedAt: DateTime!
+  processedAt: DateTime
+  relatedAlerts: [Alert!]!
+  track: Track
+}
+
+type DetectionConnection {
+  edges: [DetectionEdge!]!
+  pageInfo: PageInfo!
+}
+
+type DetectionEdge {
+  cursor: String!
+  node: Detection!
+}
+
+# ══════════════════════════════════════════════════════════════
+# ALERTS
+# ══════════════════════════════════════════════════════════════
+
+type Alert {
+  id: UUID!
+  organization: Organization!
+  title: String!
+  description: String
+  severity: ThreatSeverity!
+  status: AlertStatus!
+  domain: DomainType!
+  sourceType: String!
+  sourceId: UUID
+  location: GeoPoint
+  affectedArea: GeoJSON
+  correlationId: UUID
+  assignedTo: User
+  acknowledgedBy: User
+  acknowledgedAt: DateTime
+  resolvedBy: User
+  resolvedAt: DateTime
+  resolutionNotes: String
+  confidence: Float!
+  sourceReliability: SourceReliability!
+  relatedAlerts: [Alert!]!
+  tags: [String!]!
+  classification: ClassificationLevel!
+  responseExecutions: [ResponseExecution!]!
+  timeline: [AlertTimelineEntry!]!
+  metadata: JSON
+  expiresAt: DateTime
+  audit: AuditInfo!
+}
+
+type AlertTimelineEntry {
+  timestamp: DateTime!
+  action: String!
+  actor: User
+  details: JSON
+}
+
+type AlertConnection {
+  edges: [AlertEdge!]!
+  pageInfo: PageInfo!
+}
+
+type AlertEdge {
+  cursor: String!
+  node: Alert!
+}
+
+type AlertAggregation {
+  bySeverity: [SeverityCount!]!
+  byStatus: [StatusCount!]!
+  byDomain: [DomainCount!]!
+  byHour: [TimeSeriesPoint!]!
+  total: Int!
+  meanTimeToAcknowledge: Float
+  meanTimeToResolve: Float
+}
+
+type SeverityCount {
+  severity: ThreatSeverity!
+  count: Int!
+}
+
+type StatusCount {
+  status: AlertStatus!
+  count: Int!
+}
+
+type DomainCount {
+  domain: DomainType!
+  count: Int!
+}
+
+type TimeSeriesPoint {
+  timestamp: DateTime!
+  value: Float!
+  label: String
+}
+
+# ══════════════════════════════════════════════════════════════
+# TRACKS
+# ══════════════════════════════════════════════════════════════
+
+type Track {
+  id: UUID!
+  organization: Organization!
+  trackNumber: String!
+  entityType: String!
+  identity: String
+  domain: DomainType!
+  currentLocation: GeoPoint
+  altitude: Float
+  speed: Float
+  heading: Float
+  courseHistory: GeoJSON
+  firstDetectedAt: DateTime!
+  lastUpdatedAt: DateTime!
+  sourceSensors: [Sensor!]!
+  confidence: Float!
+  threatAssessment: ThreatSeverity
+  attributes: JSON
+  classification: ClassificationLevel!
+  isActive: Boolean!
+  history(first: Int, since: DateTime): [TrackHistoryPoint!]!
+}
+
+type TrackHistoryPoint {
+  location: GeoPoint!
+  altitude: Float
+  speed: Float
+  heading: Float
+  sensor: Sensor
+  recordedAt: DateTime!
+}
+
+type TrackConnection {
+  edges: [TrackEdge!]!
+  pageInfo: PageInfo!
+}
+
+type TrackEdge {
+  cursor: String!
+  node: Track!
+}
+
+# ══════════════════════════════════════════════════════════════
+# MISSIONS & TASKS
+# ══════════════════════════════════════════════════════════════
+
+type Mission {
+  id: UUID!
+  organization: Organization!
+  name: String!
+  description: String
+  status: MissionStatus!
+  commander: User
+  areaOfOperations: GeoJSON
+  startTime: DateTime
+  endTime: DateTime
+  objectives: JSON
+  rulesOfEngagement: String
+  tasks: [Task!]!
+  classification: ClassificationLevel!
+  relatedAlerts(first: Int): [Alert!]!
+  metadata: JSON
+  audit: AuditInfo!
+}
+
+type Task {
+  id: UUID!
+  mission: Mission
+  organization: Organization!
+  title: String!
+  description: String
+  status: TaskStatus!
+  priority: TaskPriority!
+  assignedTo: User
+  assignedUnit: String
+  parentTask: Task
+  subtasks: [Task!]!
+  dependencies: [Task!]!
+  dueAt: DateTime
+  startedAt: DateTime
+  completedAt: DateTime
+  location: GeoPoint
+  resourcesRequired: JSON
+  resourcesAllocated: JSON
+  outcome: String
+  classification: ClassificationLevel!
+  metadata: JSON
+  audit: AuditInfo!
+}
+
+# ══════════════════════════════════════════════════════════════
+# RESPONSE & AUTOMATION
+# ══════════════════════════════════════════════════════════════
+
+type ResponseRule {
+  id: UUID!
+  organization: Organization!
+  name: String!
+  description: String
+  conditions: JSON!
+  actions: JSON!
+  actionType: ResponseActionType!
+  severityThreshold: ThreatSeverity!
+  requiresApproval: Boolean!
+  approvalTimeoutMin: Int!
+  cooldownMinutes: Int!
+  maxExecutionsPerHour: Int!
+  isActive: Boolean!
+  priority: Int!
+  createdBy: User
+  classification: ClassificationLevel!
+  recentExecutions(first: Int): [ResponseExecution!]!
+  audit: AuditInfo!
+}
+
+type ResponseExecution {
+  id: UUID!
+  rule: ResponseRule!
+  alert: Alert
+  actionType: ResponseActionType!
+  parameters: JSON
+  approvalStatus: ApprovalStatus!
+  approvedBy: User
+  approvedAt: DateTime
+  executedAt: DateTime
+  completedAt: DateTime
+  result: JSON
+  error: String
+  rollbackData: JSON
+  rolledBackAt: DateTime
+  approvalRequests: [ApprovalRequest!]!
+  createdAt: DateTime!
+}
+
+type ApprovalRequest {
+  id: UUID!
+  execution: ResponseExecution!
+  requestedBy: User
+  approverRole: UserRole!
+  approver: User
+  status: ApprovalStatus!
+  justification: String
+  decisionNotes: String
+  expiresAt: DateTime!
+  decidedAt: DateTime
+  escalatedTo: User
+  escalatedAt: DateTime
+  createdAt: DateTime!
+}
+
+# ══════════════════════════════════════════════════════════════
+# CYBER DEFENSE
+# ══════════════════════════════════════════════════════════════
+
+type CyberEvent {
+  id: UUID!
+  organization: Organization!
+  eventType: String!
+  sourceIp: String
+  destinationIp: String
+  sourcePort: Int
+  destinationPort: Int
+  protocol: String
+  signatureId: String
+  signatureName: String
+  severity: ThreatSeverity!
+  iocMatches: [IOCMatch!]!
+  mitreTechniques: [String!]!
+  geoSource: GeoInfo
+  geoDestination: GeoInfo
+  alert: Alert
+  sensor: Sensor
+  classification: ClassificationLevel!
+  detectedAt: DateTime!
+}
+
+type IOCMatch {
+  indicatorType: String!
+  value: String!
+  threatType: String
+  sourceFeed: String!
+  confidence: Float!
+}
+
+type GeoInfo {
+  country: String
+  city: String
+  latitude: Float
+  longitude: Float
+  asn: Int
+  org: String
+}
+
+type ThreatIndicator {
+  id: UUID!
+  indicatorType: String!
+  value: String!
+  threatType: String
+  sourceFeed: String!
+  confidence: Float!
+  severity: ThreatSeverity!
+  firstSeenAt: DateTime!
+  lastSeenAt: DateTime!
+  expiresAt: DateTime
+  tags: [String!]!
+  context: JSON
+  isActive: Boolean!
+}
+
+type CyberEventConnection {
+  edges: [CyberEventEdge!]!
+  pageInfo: PageInfo!
+}
+
+type CyberEventEdge {
+  cursor: String!
+  node: CyberEvent!
+}
+
+type CyberDashboard {
+  eventsByType: [TypeCount!]!
+  eventsBySeverity: [SeverityCount!]!
+  topSourceIps: [IPCount!]!
+  topDestinationIps: [IPCount!]!
+  topSignatures: [SignatureCount!]!
+  eventsOverTime: [TimeSeriesPoint!]!
+  activeIndicators: Int!
+  totalEvents: Int!
+}
+
+type TypeCount {
+  type: String!
+  count: Int!
+}
+
+type IPCount {
+  ip: String!
+  count: Int!
+  geo: GeoInfo
+}
+
+type SignatureCount {
+  signatureId: String!
+  signatureName: String!
+  count: Int!
+  severity: ThreatSeverity!
+}
+
+# ══════════════════════════════════════════════════════════════
+# OSINT
+# ══════════════════════════════════════════════════════════════
+
+type OsintItem {
+  id: String!
+  sourceType: OsintSourceType!
+  sourceId: String!
+  sourceUrl: String
+  sourceName: String
+  author: OsintAuthor
+  content: OsintContent!
+  engagement: OsintEngagement
+  location: GeoPoint
+  nlpResults: NlpResults
+  ollamaAnalysis: OllamaAnalysis
+  reliability: SourceReliability
+  classification: ClassificationLevel!
+  collectedAt: DateTime!
+  publishedAt: DateTime
+}
+
+type OsintAuthor {
+  id: String
+  username: String
+  displayName: String
+  followersCount: Int
+  accountCreatedAt: DateTime
+  verified: Boolean
+  botScore: Float
+}
+
+type OsintContent {
+  text: String!
+  language: String
+  mediaUrls: [String!]
+  hashtags: [String!]
+  mentions: [String!]
+  urls: [String!]
+  title: String
+}
+
+type OsintEngagement {
+  likes: Int
+  shares: Int
+  comments: Int
+  views: Int
+}
+
+type NlpResults {
+  entities: [NlpEntity!]
+  sentiment: Sentiment
+  keywords: [String!]
+  topics: [String!]
+  threatIndicators: [String!]
+  languageDetected: String
+  summary: String
+  misinformationScore: Float
+}
+
+type NlpEntity {
+  text: String!
+  type: String!
+  startChar: Int
+  endChar: Int
+  confidence: Float
+}
+
+type Sentiment {
+  label: String!
+  score: Float!
+  compound: Float
+}
+
+type OllamaAnalysis {
+  summary: String
+  threatAssessment: String
+  entityExtraction: [NlpEntity!]
+  misinformationAnalysis: String
+  confidence: Float
+  modelUsed: String
+  analyzedAt: DateTime
+}
+
+type OsintConnection {
+  edges: [OsintEdge!]!
+  pageInfo: PageInfo!
+}
+
+type OsintEdge {
+  cursor: String!
+  node: OsintItem!
+}
+
+type OsintDashboard {
+  itemsBySource: [SourceTypeCount!]!
+  sentimentDistribution: [SentimentCount!]!
+  trendingKeywords: [KeywordCount!]!
+  trendingEntities: [EntityCount!]!
+  threatKeywordHits: [KeywordCount!]!
+  itemsOverTime: [TimeSeriesPoint!]!
+  totalItems: Int!
+  misinformationAlerts: Int!
+}
+
+type SourceTypeCount {
+  sourceType: OsintSourceType!
+  count: Int!
+}
+
+type SentimentCount {
+  label: String!
+  count: Int!
+}
+
+type KeywordCount {
+  keyword: String!
+  count: Int!
+}
+
+type EntityCount {
+  entity: String!
+  entityType: String!
+  count: Int!
+}
+
+# ══════════════════════════════════════════════════════════════
+# INTELLIGENCE FUSION (Graph)
+# ══════════════════════════════════════════════════════════════
+
+type IntelEntity {
+  id: UUID!
+  entityType: String!
+  name: String!
+  aliases: [String!]
+  domain: DomainType
+  description: String
+  attributes: JSON
+  confidence: Float
+  classification: ClassificationLevel
+  relationships: [IntelRelationship!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type IntelRelationship {
+  id: UUID!
+  sourceEntity: IntelEntity!
+  targetEntity: IntelEntity!
+  relationshipType: String!
+  confidence: Float!
+  source: String
+  attributes: JSON
+  firstSeen: DateTime
+  lastSeen: DateTime
+}
+
+type GraphAnalytics {
+  centralityScores: [CentralityScore!]!
+  communities: [Community!]!
+  shortestPath: [IntelEntity!]
+  pathLength: Int
+}
+
+type CentralityScore {
+  entity: IntelEntity!
+  score: Float!
+  algorithm: String!
+}
+
+type Community {
+  id: Int!
+  memberCount: Int!
+  topMembers: [IntelEntity!]!
+  label: String
+}
+
+# ══════════════════════════════════════════════════════════════
+# AI MODELS
+# ══════════════════════════════════════════════════════════════
+
+type AIModel {
+  id: UUID!
+  name: String!
+  version: String!
+  modelType: String!
+  framework: String!
+  status: ModelStatus!
+  artifactPath: String!
+  inputSchema: JSON!
+  outputSchema: JSON!
+  hyperparameters: JSON
+  trainingMetrics: JSON
+  validationMetrics: JSON
+  driftMetrics: [DriftMetric!]!
+  createdBy: User
+  approvedBy: User
+  deployedAt: DateTime
+  audit: AuditInfo!
+}
+
+type DriftMetric {
+  metricName: String!
+  baselineValue: Float!
+  currentValue: Float!
+  driftScore: Float!
+  threshold: Float!
+  isDrifted: Boolean!
+  measuredAt: DateTime!
+}
+
+# ══════════════════════════════════════════════════════════════
+# OLLAMA INTEGRATION
+# ══════════════════════════════════════════════════════════════
+
+type OllamaResponse {
+  id: String!
+  promptType: OllamaPromptType!
+  response: String!
+  structuredOutput: JSON
+  tokensPrompt: Int!
+  tokensResponse: Int!
+  durationMs: Int!
+  modelUsed: String!
+  confidence: Float
+  relatedEntityIds: [UUID!]
+  timestamp: DateTime!
+}
+
+type OllamaModel {
+  name: String!
+  size: BigInt!
+  modifiedAt: DateTime!
+  digest: String!
+  details: JSON
+}
+
+# ══════════════════════════════════════════════════════════════
+# SIMULATION
+# ══════════════════════════════════════════════════════════════
+
+type Simulation {
+  id: UUID!
+  organization: Organization!
+  name: String!
+  description: String
+  scenarioType: String!
+  scenarioConfig: JSON!
+  areaOfInterest: GeoJSON
+  status: MissionStatus!
+  timeAcceleration: Float!
+  startedAt: DateTime
+  completedAt: DateTime
+  results: JSON
+  createdBy: User
+  audit: AuditInfo!
+}
+
+# ══════════════════════════════════════════════════════════════
+# GOVERNANCE & AUDIT
+# ══════════════════════════════════════════════════════════════
+
+type AuditLogEntry {
+  id: UUID!
+  user: User
+  organization: Organization
+  action: String!
+  resourceType: String!
+  resourceId: UUID
+  oldValues: JSON
+  newValues: JSON
+  ipAddress: String
+  result: String!
+  errorMessage: String
+  classification: ClassificationLevel!
+  checksum: String!
+  previousChecksum: String
+  createdAt: DateTime!
+}
+
+type AuditLogConnection {
+  edges: [AuditLogEdge!]!
+  pageInfo: PageInfo!
+}
+
+type AuditLogEdge {
+  cursor: String!
+  node: AuditLogEntry!
+}
+
+type DataClassification {
+  id: UUID!
+  resourceType: String!
+  resourceId: UUID!
+  classification: ClassificationLevel!
+  caveats: [String!]!
+  releasableTo: [String!]!
+  classifiedBy: User
+  reason: String
+  reviewDate: String
+}
+
+# ══════════════════════════════════════════════════════════════
+# COUNTER-INTELLIGENCE
+# ══════════════════════════════════════════════════════════════
+
+type Honeypot {
+  id: UUID!
+  organization: Organization!
+  name: String!
+  honeypotType: String!
+  ipAddress: String
+  port: Int
+  status: SensorStatus!
+  interactionCount: BigInt!
+  lastInteractionAt: DateTime
+  classification: ClassificationLevel!
+  audit: AuditInfo!
+}
+
+type AdversaryProfile {
+  id: UUID!
+  organization: Organization!
+  name: String!
+  aliases: [String!]!
+  threatActorType: String!
+  originCountry: String
+  motivation: String
+  sophistication: String
+  knownTtps: JSON
+  knownIocs: JSON
+  mitreGroups: [String!]!
+  activeCampaigns: JSON
+  firstObservedAt: DateTime
+  lastObservedAt: DateTime
+  confidence: Float!
+  classification: ClassificationLevel!
+  metadata: JSON
+  audit: AuditInfo!
+}
+
+# ══════════════════════════════════════════════════════════════
+# DASHBOARD STATS
+# ══════════════════════════════════════════════════════════════
+
+type AlertStats {
+  total: Int!
+  critical: Int!
+  high: Int!
+  medium: Int!
+  low: Int!
+  open: Int!
+  investigating: Int!
+  resolved: Int!
+  byDomain: [DomainCount!]!
+}
+
+type SensorStats {
+  total: Int!
+  online: Int!
+  degraded: Int!
+  offline: Int!
+}
+
+type CyberStats {
+  totalEvents24h: Int!
+  idsAlerts: Int!
+  iocMatches: Int!
+  blocked: Int!
+}
+
+type ResponseStats {
+  activeRules: Int!
+  pendingApprovals: Int!
+  executed24h: Int!
+  rejected24h: Int!
+}
+
+type FusionStats {
+  totalEntities: Int!
+  totalRelationships: Int!
+  correlations24h: Int!
+  topEntityTypes: [TypeCount!]!
+}
+
+type Correlation {
+  id: UUID!
+  sourceAlertId: String
+  targetAlertId: String
+  correlationType: String!
+  confidence: Float!
+  hypothesis: String
+  createdAt: DateTime!
+}
+
+type OsintFeed {
+  id: String!
+  name: String!
+  feedType: String
+  type: String
+  status: String!
+  url: String
+  lastFetch: String
+  itemsFetched: Int
+  itemCount: Int
+  errorCount: Int
+}
+
+# ══════════════════════════════════════════════════════════════
+# SYSTEM STATUS
+# ══════════════════════════════════════════════════════════════
+
+type SystemHealth {
+  status: String!
+  uptime: BigInt!
+  services: [ServiceHealth!]!
+  kafka: KafkaHealth!
+  databases: [DatabaseHealth!]!
+  timestamp: DateTime!
+}
+
+type ServiceHealth {
+  name: String!
+  status: String!
+  version: String!
+  responseTimeMs: Int!
+  lastCheckedAt: DateTime!
+  errorRate: Float
+}
+
+type KafkaHealth {
+  brokers: Int!
+  topics: Int!
+  consumerGroups: Int!
+  totalLag: BigInt!
+}
+
+type DatabaseHealth {
+  name: String!
+  type: String!
+  status: String!
+  connectionPoolActive: Int!
+  connectionPoolIdle: Int!
+  responseTimeMs: Int!
+}
+
+# ══════════════════════════════════════════════════════════════
+# INPUT TYPES
+# ══════════════════════════════════════════════════════════════
+
+input GeoPointInput {
+  latitude: Float!
+  longitude: Float!
+  altitude: Float
+}
+
+input GeoAreaInput {
+  type: String!
+  coordinates: [[Float!]!]!
+}
+
+input TimeRangeInput {
+  start: DateTime!
+  end: DateTime!
+}
+
+input PaginationInput {
+  first: Int
+  after: String
+  last: Int
+  before: String
+}
+
+input AlertFilterInput {
+  severities: [ThreatSeverity!]
+  statuses: [AlertStatus!]
+  domains: [DomainType!]
+  classifications: [ClassificationLevel!]
+  timeRange: TimeRangeInput
+  geoWithin: GeoAreaInput
+  tags: [String!]
+  assignedTo: UUID
+  searchText: String
+  minConfidence: Float
+  sortBy: String
+  sortDirection: SortDirection
+}
+
+input DetectionFilterInput {
+  sensorIds: [UUID!]
+  domains: [DomainType!]
+  detectionTypes: [String!]
+  minConfidence: Float
+  timeRange: TimeRangeInput
+  geoWithin: GeoAreaInput
+  sortBy: String
+  sortDirection: SortDirection
+}
+
+input TrackFilterInput {
+  domains: [DomainType!]
+  entityTypes: [String!]
+  isActive: Boolean
+  minConfidence: Float
+  threatAssessments: [ThreatSeverity!]
+  geoWithin: GeoAreaInput
+  sortBy: String
+  sortDirection: SortDirection
+}
+
+input CyberEventFilterInput {
+  eventTypes: [String!]
+  severities: [ThreatSeverity!]
+  sourceIps: [String!]
+  destinationIps: [String!]
+  signatureIds: [String!]
+  mitreTechniques: [String!]
+  timeRange: TimeRangeInput
+  sortBy: String
+  sortDirection: SortDirection
+}
+
+input OsintFilterInput {
+  sourceTypes: [OsintSourceType!]
+  sentiments: [String!]
+  keywords: [String!]
+  entities: [String!]
+  minMisinformationScore: Float
+  timeRange: TimeRangeInput
+  geoWithin: GeoAreaInput
+  searchText: String
+  sortBy: String
+  sortDirection: SortDirection
+}
+
+input CreateAlertInput {
+  title: String!
+  description: String
+  severity: ThreatSeverity!
+  domain: DomainType!
+  sourceType: String!
+  sourceId: UUID
+  location: GeoPointInput
+  affectedArea: GeoAreaInput
+  tags: [String!]
+  classification: ClassificationLevel!
+  metadata: JSON
+}
+
+input UpdateAlertInput {
+  status: AlertStatus
+  severity: ThreatSeverity
+  assignedTo: UUID
+  resolutionNotes: String
+  tags: [String!]
+  metadata: JSON
+}
+
+input CreateSensorInput {
+  name: String!
+  sensorType: SensorType!
+  domain: DomainType!
+  location: GeoPointInput
+  connectionUri: String
+  connectionProtocol: String
+  edgeNodeId: UUID
+  classification: ClassificationLevel!
+  metadata: JSON
+}
+
+input CreateMissionInput {
+  name: String!
+  description: String
+  commanderId: UUID
+  areaOfOperations: GeoAreaInput
+  startTime: DateTime
+  endTime: DateTime
+  objectives: JSON
+  rulesOfEngagement: String
+  classification: ClassificationLevel!
+}
+
+input CreateTaskInput {
+  missionId: UUID
+  title: String!
+  description: String
+  priority: TaskPriority!
+  assignedTo: UUID
+  assignedUnit: String
+  parentTaskId: UUID
+  dueAt: DateTime
+  location: GeoPointInput
+  resourcesRequired: JSON
+  classification: ClassificationLevel!
+}
+
+input CreateResponseRuleInput {
+  name: String!
+  description: String
+  conditions: JSON!
+  actions: JSON!
+  actionType: ResponseActionType!
+  severityThreshold: ThreatSeverity!
+  requiresApproval: Boolean!
+  approvalTimeoutMin: Int
+  cooldownMinutes: Int
+  maxExecutionsPerHour: Int
+  priority: Int
+  classification: ClassificationLevel!
+}
+
+input OllamaQueryInput {
+  promptType: OllamaPromptType!
+  prompt: String!
+  systemPrompt: String
+  contextEntityIds: [UUID!]
+  contextAlertIds: [UUID!]
+  contextDocumentIds: [String!]
+  temperature: Float
+  maxTokens: Int
+  model: String
+}
+
+input WebhookRegistrationInput {
+  name: String!
+  url: String!
+  events: [String!]!
+  secret: String!
+  headers: JSON
+  retryPolicy: JSON
+  isActive: Boolean
+}
+
+input GraphQueryInput {
+  entityId: UUID
+  entityType: String
+  maxDepth: Int
+  relationshipTypes: [String!]
+  minConfidence: Float
+  limit: Int
+}
+
+input SimulationInput {
+  name: String!
+  description: String
+  scenarioType: String!
+  scenarioConfig: JSON!
+  areaOfInterest: GeoAreaInput
+  timeAcceleration: Float
+}
+
+# ══════════════════════════════════════════════════════════════
+# QUERIES
+# ══════════════════════════════════════════════════════════════
+
+type Query {
+  # Auth
+  me: User!
+  user(id: UUID!): User
+  users(pagination: PaginationInput, role: UserRole, orgId: UUID): UserConnection!
+
+  # Organizations
+  organization(id: UUID!): Organization
+  organizations: [Organization!]!
+
+  # Alerts
+  alert(id: UUID!): Alert
+  alerts(filter: AlertFilterInput, pagination: PaginationInput): AlertConnection!
+  alertAggregations(filter: AlertFilterInput): AlertAggregation!
+
+  # Detections
+  detection(id: UUID!): Detection
+  detections(filter: DetectionFilterInput, pagination: PaginationInput): DetectionConnection!
+
+  # Tracks
+  track(id: UUID!): Track
+  tracks(filter: TrackFilterInput, pagination: PaginationInput): TrackConnection!
+  activeTracks(geoWithin: GeoAreaInput): [Track!]!
+
+  # Sensors
+  sensor(id: UUID!): Sensor
+  sensors(pagination: PaginationInput, types: [SensorType!], statuses: [SensorStatus!], domain: DomainType): SensorConnection!
+  sensorsByArea(area: GeoAreaInput!): [Sensor!]!
+
+  # Missions & Tasks
+  mission(id: UUID!): Mission
+  missions(status: MissionStatus, pagination: PaginationInput): [Mission!]!
+  task(id: UUID!): Task
+  tasks(missionId: UUID, status: TaskStatus, assignedTo: UUID): [Task!]!
+
+  # Cyber
+  cyberEvent(id: UUID!): CyberEvent
+  cyberEvents(filter: CyberEventFilterInput, pagination: PaginationInput): CyberEventConnection!
+  cyberDashboard(timeRange: TimeRangeInput): CyberDashboard!
+  threatIndicator(id: UUID!): ThreatIndicator
+  threatIndicators(indicatorType: String, isActive: Boolean, pagination: PaginationInput): [ThreatIndicator!]!
+
+  # OSINT
+  osintItem(id: String!): OsintItem
+  osintItems(filter: OsintFilterInput, pagination: PaginationInput): OsintConnection!
+  osintDashboard(timeRange: TimeRangeInput): OsintDashboard!
+
+  # Intelligence Fusion
+  intelEntity(id: UUID!): IntelEntity
+  intelEntities(entityType: String, domain: DomainType, searchText: String, pagination: PaginationInput): [IntelEntity!]!
+  graphQuery(input: GraphQueryInput!): [IntelEntity!]!
+  graphAnalytics(entityIds: [UUID!]!, algorithms: [String!]): GraphAnalytics!
+  shortestPath(sourceId: UUID!, targetId: UUID!, maxDepth: Int): [IntelEntity!]
+
+  # Response
+  responseRule(id: UUID!): ResponseRule
+  responseRules(isActive: Boolean): [ResponseRule!]!
+  pendingApprovals: [ApprovalRequest!]!
+
+  # AI Models
+  aiModel(id: UUID!): AIModel
+  aiModels(status: ModelStatus): [AIModel!]!
+
+  # Ollama
+  ollamaModels: [OllamaModel!]!
+
+  # Simulation
+  simulation(id: UUID!): Simulation
+  simulations(status: MissionStatus): [Simulation!]!
+
+  # Governance
+  auditLog(filter: JSON, pagination: PaginationInput): AuditLogConnection!
+  dataClassification(resourceType: String!, resourceId: UUID!): DataClassification
+
+  # Counter-Intelligence
+  honeypots: [Honeypot!]!
+  adversaryProfiles(pagination: PaginationInput): [AdversaryProfile!]!
+  adversaryProfile(id: UUID!): AdversaryProfile
+
+  # Dashboard Stats
+  alertStats: AlertStats!
+  sensorStats: SensorStats!
+  cyberStats: CyberStats!
+  responseStats: ResponseStats!
+  fusionStats: FusionStats!
+  correlations(limit: Int): [Correlation!]!
+  osintFeeds: [OsintFeed!]!
+
+  # System
+  systemHealth: SystemHealth!
+}
+
+# ══════════════════════════════════════════════════════════════
+# MUTATIONS
+# ══════════════════════════════════════════════════════════════
+
+type Mutation {
+  # Auth
+  login(username: String!, password: String!, orgShortCode: String!): AuthPayload!
+  loginMfa(token: String!, mfaCode: String!): AuthPayload!
+  refreshToken(refreshToken: String!): AuthPayload!
+  logout: Boolean!
+  setupMfa: MfaSetupPayload!
+  enableMfa(code: String!): Boolean!
+  disableMfa(code: String!): Boolean!
+
+  # Users
+  createUser(username: String!, email: String!, role: UserRole!, clearanceLevel: ClassificationLevel!, orgId: UUID!): User!
+  updateUser(id: UUID!, role: UserRole, clearanceLevel: ClassificationLevel, isActive: Boolean): User!
+  resetPassword(userId: UUID!): Boolean!
+  changePassword(currentPassword: String!, newPassword: String!): Boolean!
+
+  # Alerts
+  createAlert(input: CreateAlertInput!): Alert!
+  updateAlert(id: UUID!, input: UpdateAlertInput!): Alert!
+  acknowledgeAlert(id: UUID!): Alert!
+  resolveAlert(id: UUID!, notes: String!): Alert!
+  escalateAlert(id: UUID!, to: UUID!, notes: String): Alert!
+  bulkUpdateAlerts(ids: [UUID!]!, status: AlertStatus!): [Alert!]!
+
+  # Sensors
+  createSensor(input: CreateSensorInput!): Sensor!
+  updateSensor(id: UUID!, input: JSON!): Sensor!
+  deleteSensor(id: UUID!): Boolean!
+
+  # Missions & Tasks
+  createMission(input: CreateMissionInput!): Mission!
+  updateMission(id: UUID!, input: JSON!): Mission!
+  updateMissionStatus(id: UUID!, status: MissionStatus!): Mission!
+  createTask(input: CreateTaskInput!): Task!
+  updateTask(id: UUID!, input: JSON!): Task!
+  updateTaskStatus(id: UUID!, status: TaskStatus!): Task!
+  assignTask(id: UUID!, userId: UUID!): Task!
+
+  # Response
+  createResponseRule(input: CreateResponseRuleInput!): ResponseRule!
+  updateResponseRule(id: UUID!, input: JSON!): ResponseRule!
+  toggleResponseRule(id: UUID!, isActive: Boolean!): ResponseRule!
+  approveExecution(executionId: UUID!, notes: String): ResponseExecution!
+  rejectExecution(executionId: UUID!, notes: String!): ResponseExecution!
+  rollbackExecution(executionId: UUID!): ResponseExecution!
+  triggerManualResponse(alertId: UUID!, actionType: ResponseActionType!, parameters: JSON): ResponseExecution!
+
+  # Intelligence Fusion
+  createIntelEntity(entityType: String!, name: String!, domain: DomainType, attributes: JSON, classification: ClassificationLevel): IntelEntity!
+  updateIntelEntity(id: UUID!, attributes: JSON, classification: ClassificationLevel): IntelEntity!
+  linkEntities(sourceId: UUID!, targetId: UUID!, relationshipType: String!, confidence: Float!, attributes: JSON): IntelRelationship!
+  mergeEntities(primaryId: UUID!, duplicateId: UUID!): IntelEntity!
+
+  # Ollama
+  queryOllama(input: OllamaQueryInput!): OllamaResponse!
+  submitOllamaFeedback(interactionId: String!, rating: Int!, isAccurate: Boolean!, correction: String): Boolean!
+
+  # Webhooks
+  registerWebhook(input: WebhookRegistrationInput!): JSON!
+  deleteWebhook(id: UUID!): Boolean!
+
+  # Simulation
+  createSimulation(input: SimulationInput!): Simulation!
+  startSimulation(id: UUID!): Simulation!
+  pauseSimulation(id: UUID!): Simulation!
+  stopSimulation(id: UUID!): Simulation!
+
+  # Governance
+  classifyData(resourceType: String!, resourceId: UUID!, classification: ClassificationLevel!, caveats: [String!], releasableTo: [String!], reason: String): DataClassification!
+
+  # AI Models
+  deployModel(modelId: UUID!): AIModel!
+  retireModel(modelId: UUID!): AIModel!
+  rollbackModel(modelId: UUID!, targetVersion: String!): AIModel!
+}
+
+# ══════════════════════════════════════════════════════════════
+# SUBSCRIPTIONS (Real-time via WebSocket)
+# ══════════════════════════════════════════════════════════════
+
+type Subscription {
+  alertCreated(severities: [ThreatSeverity!], domains: [DomainType!]): Alert!
+  alertUpdated(id: UUID): Alert!
+  detectionCreated(sensorIds: [UUID!], domains: [DomainType!]): Detection!
+  trackUpdated(trackIds: [UUID!]): Track!
+  trackCreated(domains: [DomainType!]): Track!
+  sensorStatusChanged(sensorIds: [UUID!]): Sensor!
+  cyberEventCreated(severities: [ThreatSeverity!]): CyberEvent!
+  osintItemCreated(sourceTypes: [OsintSourceType!]): OsintItem!
+  approvalRequired(approverRole: UserRole): ApprovalRequest!
+  responseExecuted: ResponseExecution!
+  missionUpdated(missionId: UUID): Mission!
+  systemHealthChanged: SystemHealth!
+  simulationTick(simulationId: UUID!): JSON!
+}
+
+# ══════════════════════════════════════════════════════════════
+# DIRECTIVES
+# ══════════════════════════════════════════════════════════════
+
+directive @auth(requires: UserRole!) on FIELD_DEFINITION | OBJECT
+directive @classification(minLevel: ClassificationLevel!) on FIELD_DEFINITION | OBJECT
+directive @rateLimit(max: Int!, window: Int!) on FIELD_DEFINITION
+directive @cacheControl(maxAge: Int, scope: String) on FIELD_DEFINITION | OBJECT
+directive @deprecated(reason: String) on FIELD_DEFINITION | ENUM_VALUE

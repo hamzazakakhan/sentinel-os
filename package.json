@@ -1,0 +1,26 @@
+{
+  "name": "sentinel-os",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sentinel AI Defence Operating System — C4ISR + OSINT Platform",
+  "workspaces": [
+    "services/*",
+    "shared",
+    "ui",
+    "cli"
+  ],
+  "scripts": {
+    "dev": "docker-compose -f infrastructure/docker/docker-compose.yml -f infrastructure/docker/docker-compose.dev.yml up",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "migrate:pg": "node scripts/migrations/run-pg-migrations.js",
+    "migrate:neo4j": "node scripts/migrations/run-neo4j-migrations.js",
+    "seed": "node scripts/seed/seed-all.js",
+    "proto:generate": "bash scripts/proto-gen.sh",
+    "cli": "node scripts/cli/sentinel-cli.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

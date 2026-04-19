@@ -1,0 +1,386 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.ingestion.video-frames
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 3600000
+    max.message.bytes: 10485760
+    cleanup.policy: delete
+    compression.type: lz4
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.ingestion.sensor-telemetry
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 24
+  replicas: 3
+  config:
+    retention.ms: 86400000
+    max.message.bytes: 1048576
+    cleanup.policy: delete
+    compression.type: snappy
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.ingestion.radar-sweeps
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 7200000
+    max.message.bytes: 5242880
+    cleanup.policy: delete
+    compression.type: lz4
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.detections.created
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 2592000000
+    cleanup.policy: delete
+    compression.type: snappy
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.alerts.created
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 7776000000
+    cleanup.policy: compact,delete
+    compression.type: snappy
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.alerts.updated
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 7776000000
+    cleanup.policy: compact,delete
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.tracks.updated
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    cleanup.policy: compact
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.cyber.raw-events
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 24
+  replicas: 3
+  config:
+    retention.ms: 2592000000
+    cleanup.policy: delete
+    compression.type: snappy
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.cyber.threat-indicators
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 7776000000
+    cleanup.policy: compact,delete
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.osint.items
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 2592000000
+    cleanup.policy: delete
+    compression.type: snappy
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.osint.for-analysis
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    cleanup.policy: delete
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.ai.inference-requests
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 86400000
+    cleanup.policy: delete
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.ai.inference-results
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    cleanup.policy: delete
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.ai.analysis-results
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 2592000000
+    cleanup.policy: delete
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.ai.errors
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: 2592000000
+    cleanup.policy: delete
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.response.approvals
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: 7776000000
+    cleanup.policy: compact,delete
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.response.executed
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: 7776000000
+    cleanup.policy: compact,delete
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.missions.updated
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: 2592000000
+    cleanup.policy: compact,delete
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.system.health
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    cleanup.policy: compact
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.simulation.ticks
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 86400000
+    cleanup.policy: delete
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.sensors.status
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    cleanup.policy: compact
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.ingestion.intel-feeds
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    cleanup.policy: delete
+    compression.type: snappy
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.ingestion.generic
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 604800000
+    cleanup.policy: delete
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.fusion.correlations
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 7776000000
+    cleanup.policy: compact,delete
+    min.insync.replicas: 2
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: sentinel.audit.events
+  namespace: sentinel-data
+  labels:
+    strimzi.io/cluster: sentinel-kafka
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    retention.ms: 31536000000
+    cleanup.policy: delete
+    compression.type: snappy
+    min.insync.replicas: 2

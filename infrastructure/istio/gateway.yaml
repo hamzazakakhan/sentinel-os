@@ -1,0 +1,177 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: sentinel-gateway
+  namespace: sentinel-os
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: sentinel-tls-cert
+        minProtocolVersion: TLSV1_3
+        cipherSuites:
+          - TLS_AES_256_GCM_SHA384
+          - TLS_AES_128_GCM_SHA256
+          - TLS_CHACHA20_POLY1305_SHA256
+      hosts:
+        - "sentinel.internal"
+        - "api.sentinel.internal"
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      tls:
+        httpsRedirect: true
+      hosts:
+        - "sentinel.internal"
+        - "api.sentinel.internal"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sentinel-api
+  namespace: sentinel-os
+spec:
+  hosts:
+    - "api.sentinel.internal"
+  gateways:
+    - sentinel-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /graphql
+        - uri:
+            prefix: /health
+      route:
+        - destination:
+            host: api-gateway
+            port:
+              number: 4000
+      timeout: 30s
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+        retryOn: gateway-error,connect-failure,refused-stream,unavailable,cancelled,retriable-status-codes
+      corsPolicy:
+        allowOrigins:
+          - exact: "https://sentinel.internal"
+        allowMethods: [GET, POST, OPTIONS]
+        allowHeaders:
+          - authorization
+          - content-type
+          - x-request-id
+          - x-correlation-id
+        allowCredentials: true
+        maxAge: "24h"
+    - match:
+        - uri:
+            prefix: /api/v1/ingest
+      route:
+        - destination:
+            host: ingestion-service
+            port:
+              number: 4002
+      timeout: 60s
+    - match:
+        - uri:
+            prefix: /api/v1/webhooks
+      route:
+        - destination:
+            host: ingestion-service
+            port:
+              number: 4002
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sentinel-ui
+  namespace: sentinel-os
+spec:
+  hosts:
+    - "sentinel.internal"
+  gateways:
+    - sentinel-gateway
+  http:
+    - route:
+        - destination:
+            host: sentinel-ui
+            port:
+              number: 3000
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: api-gateway-dr
+  namespace: sentinel-os
+spec:
+  host: api-gateway
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 1000
+        connectTimeout: 10s
+      http:
+        h2UpgradePolicy: DEFAULT
+        maxRequestsPerConnection: 100
+        maxRetries: 3
+    loadBalancer:
+      simple: LEAST_REQUEST
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 30
+      minHealthPercent: 70
+  subsets:
+    - name: v1
+      labels:
+        version: v1
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: sentinel-strict-mtls
+  namespace: sentinel-os
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: sentinel-authz
+  namespace: sentinel-os
+spec:
+  rules:
+    - from:
+        - source:
+            namespaces: ["sentinel-os", "istio-system"]
+      to:
+        - operation:
+            methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+    - from:
+        - source:
+            namespaces: ["sentinel-monitoring"]
+      to:
+        - operation:
+            paths: ["/health/*", "/metrics"]
+            methods: ["GET"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: sentinel-jwt
+  namespace: sentinel-os
+spec:
+  jwtRules:
+    - issuer: "https://auth.sentinel.internal"
+      jwksUri: "https://auth.sentinel.internal/.well-known/jwks.json"
+      audiences: ["sentinel-api"]
+      forwardOriginalToken: true
+      outputPayloadToHeader: x-jwt-payload

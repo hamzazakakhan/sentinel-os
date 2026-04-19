@@ -1,0 +1,9 @@
+# KAN-<ticket>: <type>: <short summary>
+#
+# Types: feat, fix, refactor, docs, chore, test, ci
+# Example: KAN-12: feat: add alert stats resolver
+#
+# Smart commits (auto-transition in Jira):
+#   KAN-12 #in-progress   - moves ticket to In Progress
+#   KAN-12 #done          - moves ticket to Done
+#   KAN-12 #comment <text> - adds comment to ticket

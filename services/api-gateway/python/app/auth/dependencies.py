@@ -10,7 +10,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.auth.jwt_handler import (
     AuthUser,
     ClearanceLevel,
-    TokenPayload,
     UserRole,
     verify_access_token,
 )

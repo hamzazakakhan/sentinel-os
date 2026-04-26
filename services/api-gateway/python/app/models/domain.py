@@ -4,22 +4,22 @@ import enum
 import uuid
 from datetime import datetime, timezone
 
+from geoalchemy2 import Geometry
 from sqlalchemy import (
     Boolean,
     DateTime,
-    Enum as SAEnum,
     Float,
     ForeignKey,
     Index,
     Integer,
-    Interval,
     String,
     Text,
-    func,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, INET, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from geoalchemy2 import Geometry
 
 from app.db.postgres import Base
 

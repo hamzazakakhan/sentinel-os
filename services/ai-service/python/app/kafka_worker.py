@@ -7,7 +7,6 @@ import time
 from typing import Any
 
 import httpx
-import numpy as np
 import structlog
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 

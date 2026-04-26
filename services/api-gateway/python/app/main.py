@@ -8,13 +8,13 @@ import uvicorn
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from strawberry.fastapi import GraphQLRouter
 
 from app.config import get_settings
-from app.db.postgres import close_db, init_db
 from app.db.mongo import close_mongo, init_mongo
 from app.db.neo4j_driver import close_neo4j, init_neo4j
+from app.db.postgres import close_db, init_db
 from app.db.redis_cache import close_redis, init_redis
 from app.graphql.schema import schema
 

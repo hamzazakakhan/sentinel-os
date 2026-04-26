@@ -7,10 +7,8 @@ from typing import Optional
 
 import strawberry
 import structlog
-from sqlalchemy import func, select, and_
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import and_, func, select
 
-from app.auth.jwt_handler import AuthUser, create_access_token, create_refresh_token
 from app.db.postgres import get_db_context
 from app.db.redis_cache import cache_get, cache_set
 from app.graphql.types import (
@@ -20,13 +18,12 @@ from app.graphql.types import (
     AlertStats,
     AlertStatus,
     AlertType,
-    AuthTokens,
+    CorrelationGQL,
     CyberEventConnection,
     CyberEventEdge,
     CyberEventFilterInput,
     CyberEventGQL,
     CyberStats,
-    CorrelationGQL,
     DashboardData,
     DomainCount,
     DomainType,
@@ -52,14 +49,12 @@ from app.graphql.types import (
 from app.models.domain import (
     Alert,
     CyberEvent,
-    Detection,
     Organization,
     OsintFeed,
     OsintItem,
     ResponseRule,
     Sensor,
     ThreatIndicator,
-    User,
 )
 
 logger = structlog.get_logger(__name__)
@@ -91,7 +86,8 @@ def _model_to_alert(row: Alert) -> AlertType:
 
 
 def _model_to_sensor(row: Sensor) -> SensorGQL:
-    from app.graphql.types import SensorStatus as GQLSensorStatus, SensorType as GQLSensorType
+    from app.graphql.types import SensorStatus as GQLSensorStatus
+    from app.graphql.types import SensorType as GQLSensorType
     return SensorGQL(
         id=strawberry.ID(str(row.id)),
         name=row.name,
@@ -328,7 +324,7 @@ async def _resolve_threat_impl(
     pag = pagination or PaginationInput()
     async with get_db_context() as session:
         query = select(ThreatIndicator).where(
-            ThreatIndicator.is_active == True
+            ThreatIndicator.is_active == True  # noqa: E712
         ).order_by(ThreatIndicator.last_seen_at.desc())
 
         count_q = select(func.count()).select_from(query.subquery())
@@ -606,7 +602,6 @@ async def resolve_fusion_stats() -> FusionStats:
 
 
 async def resolve_correlations(limit: int = 20) -> list:
-    from app.graphql.types import CorrelationGQL
     import random
     try:
         async with get_db_context() as session:
@@ -824,7 +819,6 @@ async def resolve_ingest_ai_intelligence(
     longitude: Optional[float] = None,
 ) -> MutationResult:
     """Ingests AI-processed intelligence text and routes to appropriate modules."""
-    import json
     import httpx
 
     def _detect_domain_from_text(text: str) -> str:
@@ -916,7 +910,7 @@ async def resolve_pending_approvals() -> list:
     try:
         async with get_db_context() as session:
             result = await session.execute(
-                select(ResponseRule).where(ResponseRule.requires_approval == True, ResponseRule.is_active == True)
+                select(ResponseRule).where(ResponseRule.requires_approval == True, ResponseRule.is_active == True)  # noqa: E712
             )
             rules = result.scalars().all()
             approvals = []

@@ -6,15 +6,13 @@ import json
 import pickle
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import structlog
 import uvicorn
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 

@@ -3,8 +3,6 @@ and feeds it into the Sentinel OS system via the API Gateway GraphQL mutations."
 
 import asyncio
 import random
-import time
-from datetime import datetime
 
 import httpx
 import structlog

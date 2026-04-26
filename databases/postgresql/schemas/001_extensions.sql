@@ -2,12 +2,11 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "postgis";
 CREATE EXTENSION IF NOT EXISTS "postgis_topology";
-CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
-CREATE EXTENSION IF NOT EXISTS "pgaudit";
 CREATE EXTENSION IF NOT EXISTS "hstore";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 CREATE EXTENSION IF NOT EXISTS "btree_gist";
-CREATE EXTENSION IF NOT EXISTS "timescaledb" CASCADE;
 
-SET pgaudit.log = 'ddl, write';
-SET pgaudit.log_catalog = off;
+-- Optional extensions (skip if not available)
+DO $$ BEGIN CREATE EXTENSION IF NOT EXISTS "pg_stat_statements"; EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'pg_stat_statements not available'; END $$;
+DO $$ BEGIN CREATE EXTENSION IF NOT EXISTS "pgaudit"; EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'pgaudit not available'; END $$;
+DO $$ BEGIN CREATE EXTENSION IF NOT EXISTS "timescaledb" CASCADE; EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'timescaledb not available'; END $$;

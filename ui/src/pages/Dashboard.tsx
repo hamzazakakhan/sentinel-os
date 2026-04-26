@@ -19,10 +19,9 @@ const SEVERITY_COLORS: Record<string, string> = {
   LOW: '#22c55e',
 };
 
-const fallbackAlertStats = { total: 15, critical: 5, high: 4, medium: 4, low: 2, open: 9, investigating: 4, resolved: 2, byDomain: [{ domain: 'LAND', count: 5 }, { domain: 'AIR', count: 2 }, { domain: 'SEA', count: 2 }, { domain: 'CYBER', count: 5 }, { domain: 'SPACE', count: 1 }] };
+const fallbackAlertStats = { total: 15, critical: 5, high: 4, medium: 4, low: 2, unacknowledged: 9, byDomain: [{ domain: 'LAND', count: 5 }, { domain: 'AIR', count: 2 }, { domain: 'SEA', count: 2 }, { domain: 'CYBER', count: 5 }, { domain: 'SPACE', count: 1 }] };
 const fallbackSensorStats = { total: 16, online: 13, degraded: 1, offline: 2 };
-const fallbackCyberStats = { totalEvents24h: 12431, idsAlerts: 347, iocMatches: 89, blocked: 1203 };
-const fallbackResponseStats = { activeRules: 4, pendingApprovals: 2, executed24h: 34, rejected24h: 2 };
+const fallbackCyberStats = { totalEvents: 12431, blocked: 1203, criticalEvents: 89 };
 
 export function Dashboard() {
   const { setActiveAlertCount, setSystemHealth } = useStore();
@@ -39,11 +38,11 @@ export function Dashboard() {
     },
   });
 
-  const alertStats = dashData?.alertStats || fallbackAlertStats;
-  const sensorStats = dashData?.sensorStats || fallbackSensorStats;
-  const cyberStats = dashData?.cyberStats || fallbackCyberStats;
-  const responseStats = dashData?.responseStats || fallbackResponseStats;
-  const recentAlerts = recentAlertsData?.alerts || [];
+  const dd = dashData?.dashboardData;
+  const alertStats = dd?.alertStats || fallbackAlertStats;
+  const sensorStats = dd?.sensorStats || fallbackSensorStats;
+  const cyberStats = dd?.cyberStats || fallbackCyberStats;
+  const recentAlerts = recentAlertsData?.alerts?.edges?.map((e: any) => e.node) || [];
 
   const severityData = useMemo(() => [
     { name: 'CRITICAL', value: alertStats.critical, color: SEVERITY_COLORS.CRITICAL },
@@ -64,12 +63,12 @@ export function Dashboard() {
   })), []);
 
   const statCards = [
-    { label: 'Active Alerts', value: alertStats.total.toLocaleString(), change: `${alertStats.open} open`, icon: AlertTriangle, color: 'text-red-400', bgColor: 'bg-red-500/10' },
-    { label: 'Connected Sensors', value: `${sensorStats.online}/${sensorStats.total}`, change: `${sensorStats.degraded} degraded`, icon: Radio, color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
-    { label: 'Cyber Events (24h)', value: cyberStats.totalEvents24h.toLocaleString(), change: `${cyberStats.idsAlerts} IDS`, icon: Shield, color: 'text-purple-400', bgColor: 'bg-purple-500/10' },
-    { label: 'IOC Matches', value: cyberStats.iocMatches.toLocaleString(), change: `${cyberStats.blocked} blocked`, icon: Eye, color: 'text-green-400', bgColor: 'bg-green-500/10' },
-    { label: 'Response Rules', value: responseStats.activeRules.toString(), change: `${responseStats.pendingApprovals} pending`, icon: Zap, color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' },
-    { label: 'System Load', value: `${sensorStats.online > 0 ? Math.round((sensorStats.online / sensorStats.total) * 100) : 0}%`, change: 'nominal', icon: Cpu, color: 'text-cyan-400', bgColor: 'bg-cyan-500/10' },
+    { label: 'Active Alerts', value: alertStats.total?.toLocaleString() || '0', change: `${alertStats.unacknowledged || 0} unack`, icon: AlertTriangle, color: 'text-red-400', bgColor: 'bg-red-500/10' },
+    { label: 'Connected Sensors', value: `${sensorStats.online || 0}/${sensorStats.total || 0}`, change: `${sensorStats.degraded || 0} degraded`, icon: Radio, color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
+    { label: 'Cyber Events', value: (cyberStats.totalEvents || 0).toLocaleString(), change: `${cyberStats.criticalEvents || 0} critical`, icon: Shield, color: 'text-purple-400', bgColor: 'bg-purple-500/10' },
+    { label: 'Blocked', value: (cyberStats.blocked || 0).toLocaleString(), change: 'threats blocked', icon: Eye, color: 'text-green-400', bgColor: 'bg-green-500/10' },
+    { label: 'AI Intel Feed', value: recentAlerts.filter((a: any) => a?.sourceType?.includes('ollama')).length.toString(), change: 'AI generated', icon: Zap, color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' },
+    { label: 'System Load', value: `${sensorStats.online > 0 ? Math.round((sensorStats.online / (sensorStats.total || 1)) * 100) : 0}%`, change: 'nominal', icon: Cpu, color: 'text-cyan-400', bgColor: 'bg-cyan-500/10' },
   ];
 
   useEffect(() => {

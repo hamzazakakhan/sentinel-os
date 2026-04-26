@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
-import { useQuery, useSubscription } from '@apollo/client';
-import { Bell, Filter, ChevronDown, Clock, MapPin, Tag, Loader2 } from 'lucide-react';
+import { useQuery, useMutation, useSubscription } from '@apollo/client';
+import { Bell, Filter, ChevronDown, Clock, MapPin, Tag, Loader2, Plus, X } from 'lucide-react';
 import { GET_ALERTS } from '../graphql/queries';
 import { ALERT_CREATED } from '../graphql/subscriptions';
+import { CREATE_ALERT } from '../graphql/mutations';
 
 const SEVERITY_STYLES: Record<string, string> = {
   CRITICAL: 'bg-red-500/10 text-red-400 border-red-500/30',
@@ -33,6 +34,10 @@ export function AlertsPage() {
   const [severityFilter, setSeverityFilter] = useState<string>('ALL');
   const [domainFilter, setDomainFilter] = useState<string>('ALL');
   const [liveAlerts, setLiveAlerts] = useState<any[]>([]);
+  const [showCreate, setShowCreate] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [createForm, setCreateForm] = useState({ title: '', severity: 'MEDIUM', domain: 'LAND', description: '' });
+  const [createAlert] = useMutation(CREATE_ALERT);
 
   const filter: Record<string, any> = {};
   if (severityFilter !== 'ALL') filter.severities = [severityFilter];
@@ -102,12 +107,37 @@ export function AlertsPage() {
               <option value="SPACE">Space</option>
             </select>
           </div>
+          <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-sentinel-500/20 text-sentinel-400 border border-sentinel-500/40 rounded-lg text-sm hover:bg-sentinel-500/30 transition-colors">
+            <Plus className="w-4 h-4" /> Create Alert
+          </button>
         </div>
       </div>
 
+      {showCreate && (
+        <div className="glass-panel p-4 border-sentinel-500/30">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-white">Create New Alert</h3>
+            <button onClick={() => setShowCreate(false)}><X className="w-4 h-4 text-gray-500" /></button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input placeholder="Alert title" value={createForm.title} onChange={e => setCreateForm(p => ({ ...p, title: e.target.value }))} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-sentinel-500 md:col-span-2" />
+            <select value={createForm.severity} onChange={e => setCreateForm(p => ({ ...p, severity: e.target.value }))} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300">
+              <option value="CRITICAL">Critical</option><option value="HIGH">High</option><option value="MEDIUM">Medium</option><option value="LOW">Low</option>
+            </select>
+            <select value={createForm.domain} onChange={e => setCreateForm(p => ({ ...p, domain: e.target.value }))} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300">
+              <option value="LAND">Land</option><option value="AIR">Air</option><option value="SEA">Sea</option><option value="CYBER">Cyber</option><option value="SPACE">Space</option><option value="INTELLIGENCE">Intelligence</option><option value="OSINT">OSINT</option>
+            </select>
+            <input placeholder="Description (optional)" value={createForm.description} onChange={e => setCreateForm(p => ({ ...p, description: e.target.value }))} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none md:col-span-3" />
+            <button onClick={async () => { await createAlert({ variables: createForm, refetchQueries: [{ query: GET_ALERTS, variables: { pagination: { first: 50 } } }] }); setCreateForm({ title: '', severity: 'MEDIUM', domain: 'LAND', description: '' }); setShowCreate(false); }} disabled={!createForm.title} className="px-4 py-2 bg-sentinel-600 text-white rounded-lg text-sm font-medium hover:bg-sentinel-500 disabled:opacity-50 transition-colors">
+              Submit
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
         {filtered.map((alert) => (
-          <div key={alert.id} className="glass-panel p-4 hover:border-gray-700 transition-colors cursor-pointer">
+          <div key={alert.id} className="glass-panel p-4 hover:border-gray-700 transition-colors cursor-pointer" onClick={() => setExpandedId(expandedId === alert.id ? null : alert.id)}>
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
@@ -123,10 +153,10 @@ export function AlertsPage() {
                     <Clock className="w-3 h-3" />
                     {new Date(alert.createdAt).toLocaleString()}
                   </span>
-                  {alert.sourceDetectionId && (
+                  {alert.sourceType && (
                     <span className="flex items-center gap-1">
                       <MapPin className="w-3 h-3" />
-                      {alert.sourceDetectionId}
+                      {alert.sourceType}
                     </span>
                   )}
                   {alert.confidence != null && <span>Confidence: {(alert.confidence * 100).toFixed(0)}%</span>}
@@ -146,9 +176,28 @@ export function AlertsPage() {
                 }`}>
                   {alert.status}
                 </span>
-                <ChevronDown className="w-4 h-4 text-gray-600" />
+                <ChevronDown className={`w-4 h-4 text-gray-600 transition-transform ${expandedId === alert.id ? 'rotate-180' : ''}`} />
               </div>
             </div>
+            {expandedId === alert.id && (
+              <div className="mt-4 pt-4 border-t border-gray-700/50 space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                  <div><span className="text-gray-500">Status:</span> <span className="text-white ml-1">{alert.status}</span></div>
+                  <div><span className="text-gray-500">Domain:</span> <span className="text-white ml-1">{alert.domain}</span></div>
+                  <div><span className="text-gray-500">Source:</span> <span className="text-white ml-1">{alert.sourceType || 'manual'}</span></div>
+                  <div><span className="text-gray-500">Confidence:</span> <span className="text-white ml-1">{alert.confidence != null ? `${(alert.confidence * 100).toFixed(0)}%` : 'N/A'}</span></div>
+                </div>
+                {alert.description && <p className="text-xs text-gray-400">{alert.description}</p>}
+                <div className="text-xs text-gray-500">
+                  <span className="text-gray-500">ID:</span> <span className="font-mono text-gray-400 ml-1">{alert.id}</span>
+                </div>
+                {alert.tags?.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {alert.tags.map((t: string) => <span key={t} className="px-2 py-0.5 bg-gray-800 text-gray-400 rounded text-[10px]">{t}</span>)}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>

@@ -6,6 +6,7 @@ export const GET_ALERTS = gql`
   query GetAlerts($filter: AlertFilterInput, $pagination: PaginationInput) {
     alerts(filter: $filter, pagination: $pagination) {
       edges {
+        cursor
         node {
           id
           title
@@ -14,11 +15,10 @@ export const GET_ALERTS = gql`
           status
           domain
           sourceType
-          sourceId
           confidence
           tags
-          classification
           createdAt
+          updatedAt
         }
       }
       pageInfo {
@@ -31,38 +31,41 @@ export const GET_ALERTS = gql`
 `;
 
 export const GET_ALERT_BY_ID = gql`
-  query GetAlert($id: UUID!) {
-    alert(id: $id) {
-      id
-      title
-      description
-      severity
-      domain
-      status
-      sourceType
-      sourceId
-      confidence
-      tags
-      classification
-      createdAt
+  query GetAlert($filter: AlertFilterInput, $pagination: PaginationInput) {
+    alerts(filter: $filter, pagination: $pagination) {
+      edges {
+        node {
+          id
+          title
+          description
+          severity
+          domain
+          status
+          sourceType
+          confidence
+          tags
+          createdAt
+          updatedAt
+        }
+      }
     }
   }
 `;
 
 export const GET_ALERT_STATS = gql`
   query GetAlertStats {
-    alertStats {
-      total
-      critical
-      high
-      medium
-      low
-      open
-      investigating
-      resolved
-      byDomain {
-        domain
-        count
+    dashboardData {
+      alertStats {
+        total
+        critical
+        high
+        medium
+        low
+        unacknowledged
+        byDomain {
+          domain
+          count
+        }
       }
     }
   }
@@ -98,17 +101,18 @@ export const GET_DETECTIONS = gql`
 // ── Sensors ─────────────────────────────────────────────────────────────────
 
 export const GET_SENSORS = gql`
-  query GetSensors($types: [SensorType!], $statuses: [SensorStatus!], $domain: DomainType, $pagination: PaginationInput) {
-    sensors(types: $types, statuses: $statuses, domain: $domain, pagination: $pagination) {
+  query GetSensors($filter: SensorFilterInput, $pagination: PaginationInput) {
+    sensors(filter: $filter, pagination: $pagination) {
       edges {
+        cursor
         node {
           id
           name
           sensorType
           domain
           status
-          classification
           lastHeartbeatAt
+          createdAt
         }
       }
       pageInfo {
@@ -121,11 +125,13 @@ export const GET_SENSORS = gql`
 
 export const GET_SENSOR_STATS = gql`
   query GetSensorStats {
-    sensorStats {
-      total
-      online
-      degraded
-      offline
+    dashboardData {
+      sensorStats {
+        total
+        online
+        degraded
+        offline
+      }
     }
   }
 `;
@@ -136,17 +142,17 @@ export const GET_CYBER_EVENTS = gql`
   query GetCyberEvents($filter: CyberEventFilterInput, $pagination: PaginationInput) {
     cyberEvents(filter: $filter, pagination: $pagination) {
       edges {
+        cursor
         node {
           id
           eventType
           severity
           sourceIp
           destinationIp
+          sourcePort
           destinationPort
           protocol
-          signatureId
           signatureName
-          classification
           detectedAt
         }
       }
@@ -159,27 +165,38 @@ export const GET_CYBER_EVENTS = gql`
 `;
 
 export const GET_THREAT_INDICATORS = gql`
-  query GetThreatIndicators($indicatorType: String, $isActive: Boolean, $pagination: PaginationInput) {
-    threatIndicators(indicatorType: $indicatorType, isActive: $isActive, pagination: $pagination) {
-      id
-      indicatorType
-      value
-      severity
-      sourceFeed
-      confidence
-      tags
-      firstSeenAt
+  query GetThreatIndicators($pagination: PaginationInput) {
+    threatIndicators(pagination: $pagination) {
+      edges {
+        cursor
+        node {
+          id
+          indicatorType
+          value
+          severity
+          sourceFeed
+          confidence
+          firstSeenAt
+          lastSeenAt
+          isActive
+        }
+      }
+      pageInfo {
+        hasNextPage
+        totalCount
+      }
     }
   }
 `;
 
 export const GET_CYBER_STATS = gql`
   query GetCyberStats {
-    cyberStats {
-      totalEvents24h
-      idsAlerts
-      iocMatches
-      blocked
+    dashboardData {
+      cyberStats {
+        totalEvents
+        blocked
+        criticalEvents
+      }
     }
   }
 `;
@@ -191,31 +208,27 @@ export const GET_OSINT_FEEDS = gql`
     osintFeeds {
       id
       name
-      feedType
-      type
-      status
-      url
-      lastFetch
-      itemsFetched
-      itemCount
-      errorCount
+      sourceType
+      isActive
+      pollIntervalSec
+      itemsCollected
+      lastPoll
     }
   }
 `;
 
 export const GET_OSINT_ITEMS = gql`
-  query GetOsintItems($filter: OsintFilterInput, $pagination: PaginationInput) {
-    osintItems(filter: $filter, pagination: $pagination) {
+  query GetOsintItems($pagination: PaginationInput) {
+    osintItems(pagination: $pagination) {
       edges {
+        cursor
         node {
           id
           sourceType
-          sourceUrl
           sourceName
-          content {
-            text
-            title
-          }
+          content
+          sentimentScore
+          threatScore
           collectedAt
           publishedAt
         }
@@ -268,11 +281,8 @@ export const GET_FUSION_STATS = gql`
     fusionStats {
       totalEntities
       totalRelationships
+      threatActors
       correlations24h
-      topEntityTypes {
-        type
-        count
-      }
     }
   }
 `;
@@ -285,14 +295,10 @@ export const GET_RESPONSE_RULES = gql`
       id
       name
       description
-      actionType
       severityThreshold
       requiresApproval
       isActive
       cooldownMinutes
-      maxExecutionsPerHour
-      priority
-      classification
     }
   }
 `;
@@ -301,10 +307,11 @@ export const GET_PENDING_APPROVALS = gql`
   query GetPendingApprovals {
     pendingApprovals {
       id
-      status
+      ruleName
       justification
+      trigger
       expiresAt
-      createdAt
+      expiresIn
     }
   }
 `;
@@ -324,37 +331,30 @@ export const GET_RESPONSE_STATS = gql`
 
 export const GET_DASHBOARD_DATA = gql`
   query GetDashboardData {
-    alertStats {
-      total
-      critical
-      high
-      medium
-      low
-      open
-      investigating
-      resolved
-      byDomain {
-        domain
-        count
+    dashboardData {
+      alertStats {
+        total
+        critical
+        high
+        medium
+        low
+        unacknowledged
+        byDomain {
+          domain
+          count
+        }
       }
-    }
-    sensorStats {
-      total
-      online
-      degraded
-      offline
-    }
-    cyberStats {
-      totalEvents24h
-      idsAlerts
-      iocMatches
-      blocked
-    }
-    responseStats {
-      activeRules
-      pendingApprovals
-      executed24h
-      rejected24h
+      sensorStats {
+        total
+        online
+        degraded
+        offline
+      }
+      cyberStats {
+        totalEvents
+        blocked
+        criticalEvents
+      }
     }
   }
 `;

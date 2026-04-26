@@ -94,11 +94,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Main Content */}
       <main
-        className={`flex-1 overflow-y-auto pt-6 transition-all duration-200 ${
+        className={`flex-1 overflow-y-auto mt-6 transition-all duration-200 ${
           sidebarOpen ? 'ml-56' : 'ml-16'
         }`}
       >
-        <div className="p-6">{children}</div>
+        <div className="p-6 relative z-0">{children}</div>
       </main>
     </div>
   );

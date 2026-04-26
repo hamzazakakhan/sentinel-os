@@ -196,10 +196,9 @@ CREATE TABLE detections (
     processed_at        TIMESTAMPTZ
 );
 
-SELECT create_hypertable('detections', 'detected_at',
+DO $$BEGIN PERFORM create_hypertable('detections', 'detected_at',
     chunk_time_interval => INTERVAL '1 day',
-    if_not_exists => TRUE
-);
+    if_not_exists => TRUE); EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'hypertable skipped'; END $$;
 
 CREATE INDEX idx_detections_sensor ON detections(sensor_id, detected_at DESC);
 CREATE INDEX idx_detections_type ON detections(detection_type, detected_at DESC);
@@ -239,10 +238,9 @@ CREATE TABLE alerts (
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-SELECT create_hypertable('alerts', 'created_at',
+DO $$BEGIN PERFORM create_hypertable('alerts', 'created_at',
     chunk_time_interval => INTERVAL '7 days',
-    if_not_exists => TRUE
-);
+    if_not_exists => TRUE); EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'hypertable skipped'; END $$;
 
 CREATE INDEX idx_alerts_org ON alerts(organization_id, created_at DESC);
 CREATE INDEX idx_alerts_severity ON alerts(severity, created_at DESC);
@@ -302,10 +300,9 @@ CREATE TABLE track_history (
     PRIMARY KEY (id, recorded_at)
 );
 
-SELECT create_hypertable('track_history', 'recorded_at',
+DO $$BEGIN PERFORM create_hypertable('track_history', 'recorded_at',
     chunk_time_interval => INTERVAL '1 day',
-    if_not_exists => TRUE
-);
+    if_not_exists => TRUE); EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'hypertable skipped'; END $$;
 
 CREATE INDEX idx_track_history_track ON track_history(track_id, recorded_at DESC);
 
@@ -485,10 +482,9 @@ CREATE TABLE model_drift_metrics (
     PRIMARY KEY (id, measured_at)
 );
 
-SELECT create_hypertable('model_drift_metrics', 'measured_at',
+DO $$BEGIN PERFORM create_hypertable('model_drift_metrics', 'measured_at',
     chunk_time_interval => INTERVAL '1 day',
-    if_not_exists => TRUE
-);
+    if_not_exists => TRUE); EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'hypertable skipped'; END $$;
 
 CREATE INDEX idx_drift_model ON model_drift_metrics(model_id, measured_at DESC);
 
@@ -505,10 +501,9 @@ CREATE TABLE model_predictions (
     PRIMARY KEY (id, predicted_at)
 );
 
-SELECT create_hypertable('model_predictions', 'predicted_at',
+DO $$BEGIN PERFORM create_hypertable('model_predictions', 'predicted_at',
     chunk_time_interval => INTERVAL '1 day',
-    if_not_exists => TRUE
-);
+    if_not_exists => TRUE); EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'hypertable skipped'; END $$;
 
 CREATE INDEX idx_predictions_model ON model_predictions(model_id, predicted_at DESC);
 
@@ -542,10 +537,9 @@ CREATE TABLE cyber_events (
     PRIMARY KEY (id, detected_at)
 );
 
-SELECT create_hypertable('cyber_events', 'detected_at',
+DO $$BEGIN PERFORM create_hypertable('cyber_events', 'detected_at',
     chunk_time_interval => INTERVAL '1 day',
-    if_not_exists => TRUE
-);
+    if_not_exists => TRUE); EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'hypertable skipped'; END $$;
 
 CREATE INDEX idx_cyber_events_org ON cyber_events(organization_id, detected_at DESC);
 CREATE INDEX idx_cyber_events_type ON cyber_events(event_type, detected_at DESC);
@@ -603,10 +597,9 @@ CREATE TABLE audit_log (
     PRIMARY KEY (id, created_at)
 );
 
-SELECT create_hypertable('audit_log', 'created_at',
+DO $$BEGIN PERFORM create_hypertable('audit_log', 'created_at',
     chunk_time_interval => INTERVAL '1 day',
-    if_not_exists => TRUE
-);
+    if_not_exists => TRUE); EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'hypertable skipped'; END $$;
 
 CREATE INDEX idx_audit_user ON audit_log(user_id, created_at DESC);
 CREATE INDEX idx_audit_org ON audit_log(organization_id, created_at DESC);

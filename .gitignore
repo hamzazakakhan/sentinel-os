@@ -11,3 +11,5 @@ coverage/
 *.tgz
 .vite/
 .turbo/
+__pycache__/
+*.pyc

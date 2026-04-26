@@ -18,7 +18,9 @@ export function FusionPage() {
   const { data: corrData } = useQuery(GET_CORRELATIONS, { variables: { limit: 20 }, pollInterval: 30000, errorPolicy: 'all' });
 
   const fusionStats = useMemo(() => {
-    return statsData?.fusionStats || seedFusionStats;
+    const s = statsData?.fusionStats;
+    if (s && (s.totalEntities > 0 || s.totalRelationships > 0 || s.correlations24h > 0)) return s;
+    return seedFusionStats;
   }, [statsData]);
 
   const correlations = useMemo(() => {

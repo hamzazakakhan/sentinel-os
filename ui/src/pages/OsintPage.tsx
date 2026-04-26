@@ -38,13 +38,19 @@ export function OsintPage() {
 
   const recentItems = useMemo(() => {
     const edges = itemsData?.osintItems?.edges || [];
-    const apiItems = edges.map((e: any) => ({
-      id: e.node.id,
-      title: e.node.content?.title || e.node.sourceName || 'Untitled',
-      feed: e.node.sourceName || e.node.sourceType || 'Unknown',
-      indicators: 0,
-      ingestedAt: e.node.collectedAt || e.node.publishedAt,
-    }));
+    const apiItems = edges.map((e: any) => {
+      const node = e.node;
+      const rawText = typeof node.content === 'string' ? node.content : (node.content?.text || node.content?.title || '');
+      const title = rawText.length > 120 ? rawText.slice(0, 120) + '…' : rawText || node.sourceName || 'Untitled';
+      const iocPatterns = rawText.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b|CVE-\d{4}-\d+|[a-f0-9]{32,64}\b|[a-zA-Z0-9.-]+\[?\.\]?(?:com|net|org|io|ru|cn)\b/gi);
+      return {
+        id: node.id,
+        title,
+        feed: (node.sourceName || node.sourceType || 'Unknown').replace(/^AI-/, ''),
+        indicators: iocPatterns ? iocPatterns.length : 0,
+        ingestedAt: node.collectedAt || node.publishedAt,
+      };
+    });
     const items = apiItems.length > 0 ? apiItems : seedRecentItems;
     if (!search) return items;
     return items.filter((item: any) => item.title.toLowerCase().includes(search.toLowerCase()));

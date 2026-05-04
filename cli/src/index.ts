@@ -426,6 +426,188 @@ govCmd
     }
   });
 
+// ── Auth ─────────────────────────────────────────────────────────────────────
+
+const authCmd = program.command('auth').description('Authentication');
+
+authCmd
+  .command('login')
+  .description('Login and store JWT token')
+  .option('-u, --username <user>', 'Username')
+  .option('-p, --password <pass>', 'Password')
+  .option('--mfa <code>', 'MFA TOTP code')
+  .action(async (opts) => {
+    const spinner = ora('Authenticating...').start();
+    try {
+      const client = createClient(program.opts().url);
+      const payload: Record<string, string> = { username: opts.username, password: opts.password };
+      if (opts.mfa) payload.mfaCode = opts.mfa;
+      const { data } = await client.post('/api/v1/auth/login', payload);
+      spinner.succeed(chalk.green(`Authenticated as ${opts.username}`));
+      console.log(chalk.gray(`Token: ${data.accessToken?.substring(0, 40)}...`));
+      console.log(chalk.gray('Set SENTINEL_TOKEN env or use --token to authenticate future commands'));
+    } catch (err: any) {
+      spinner.fail(chalk.red(`Login failed: ${err.response?.data?.message || err.message}`));
+    }
+  });
+
+authCmd
+  .command('whoami')
+  .description('Show current user info')
+  .action(async () => {
+    const spinner = ora('Fetching user...').start();
+    try {
+      const client = createClient(program.opts().url, program.opts().token);
+      const { data } = await client.get('/api/v1/auth/me');
+      spinner.stop();
+      console.log(chalk.bold(`User: ${data.username}`));
+      console.log(chalk.gray(`  Role: ${data.role}`));
+      console.log(chalk.gray(`  MFA: ${data.mfaEnabled ? chalk.green('enabled') : chalk.yellow('disabled')}`));
+      console.log(chalk.gray(`  Classification: ${data.clearanceLevel}`));
+    } catch (err: any) {
+      spinner.fail(chalk.red(`Failed: ${err.message}`));
+    }
+  });
+
+// ── Fusion ──────────────────────────────────────────────────────────────────
+
+const fusionCmd = program.command('fusion').description('Fusion & correlation');
+
+fusionCmd
+  .command('graph')
+  .description('Query the correlation graph')
+  .option('-e, --entity <id>', 'Entity ID to explore')
+  .option('-d, --depth <n>', 'Traversal depth', '2')
+  .action(async (opts) => {
+    const spinner = ora('Querying graph...').start();
+    try {
+      const client = createClient(program.opts().url, program.opts().token);
+      const params: Record<string, string> = { depth: opts.depth };
+      if (opts.entity) params.entityId = opts.entity;
+      const { data } = await client.get('/api/v1/fusion/graph', { params });
+      spinner.stop();
+
+      const table = new Table({ head: ['Entity', 'Type', 'Relations', 'Risk'].map(h => chalk.cyan(h)) });
+      for (const n of data.nodes || []) {
+        table.push([n.label || n.id?.slice(0, 12), n.type, String(n.relationCount || 0), n.riskScore?.toFixed(2) || '-']);
+      }
+      console.log(table.toString());
+      console.log(chalk.gray(`Nodes: ${data.nodes?.length || 0} | Edges: ${data.edges?.length || 0}`));
+    } catch (err: any) {
+      spinner.fail(chalk.red(`Failed: ${err.message}`));
+    }
+  });
+
+fusionCmd
+  .command('correlate <alertId>')
+  .description('Correlate an alert across data sources')
+  .action(async (alertId) => {
+    const spinner = ora('Correlating...').start();
+    try {
+      const client = createClient(program.opts().url, program.opts().token);
+      const { data } = await client.post(`/api/v1/fusion/correlate/${alertId}`);
+      spinner.succeed(chalk.green(`Correlation complete — ${data.relatedEntities || 0} related entities found`));
+      if (data.entities?.length) {
+        const table = new Table({ head: ['Entity', 'Type', 'Confidence', 'Source'].map(h => chalk.cyan(h)) });
+        for (const e of data.entities) {
+          table.push([e.value, e.type, e.confidence?.toFixed(2) || '-', e.source]);
+        }
+        console.log(table.toString());
+      }
+    } catch (err: any) {
+      spinner.fail(chalk.red(`Failed: ${err.message}`));
+    }
+  });
+
+// ── Intel ───────────────────────────────────────────────────────────────────
+
+const intelCmd = program.command('intel').description('Intelligence management');
+
+intelCmd
+  .command('feeds')
+  .description('List intelligence feeds')
+  .action(async () => {
+    const spinner = ora('Fetching feeds...').start();
+    try {
+      const client = createClient(program.opts().url, program.opts().token);
+      const { data } = await client.get('/api/v1/intel/feeds');
+      spinner.stop();
+
+      const table = new Table({ head: ['Feed', 'Type', 'Status', 'Last Poll', 'IOCs'].map(h => chalk.cyan(h)) });
+      for (const f of data.feeds || []) {
+        table.push([f.name, f.type, f.active ? chalk.green('Active') : chalk.red('Inactive'), f.lastPollAt || '-', String(f.iocCount || 0)]);
+      }
+      console.log(table.toString());
+    } catch (err: any) {
+      spinner.fail(chalk.red(`Failed: ${err.message}`));
+    }
+  });
+
+intelCmd
+  .command('lookup <value>')
+  .description('Look up an IOC across all feeds')
+  .action(async (value) => {
+    const spinner = ora('Looking up IOC...').start();
+    try {
+      const client = createClient(program.opts().url, program.opts().token);
+      const { data } = await client.get(`/api/v1/intel/lookup/${encodeURIComponent(value)}`);
+      spinner.stop();
+
+      if (!data.found) {
+        console.log(chalk.yellow(`No results for: ${value}`));
+        return;
+      }
+      console.log(chalk.bold(`IOC: ${data.value}`));
+      console.log(chalk.gray(`  Type: ${data.type} | Confidence: ${data.confidence} | TLP: ${data.tlp}`));
+      console.log(chalk.gray(`  Sources: ${(data.sources || []).join(', ')}`));
+      if (data.tags?.length) console.log(chalk.gray(`  Tags: ${data.tags.join(', ')}`));
+    } catch (err: any) {
+      spinner.fail(chalk.red(`Failed: ${err.message}`));
+    }
+  });
+
+// ── Scenarios ───────────────────────────────────────────────────────────────
+
+const scenarioCmd = program.command('scenario').description('Simulation scenarios');
+
+scenarioCmd
+  .command('list')
+  .description('List available scenarios')
+  .action(async () => {
+    const spinner = ora('Fetching scenarios...').start();
+    try {
+      const client = createClient(program.opts().url, program.opts().token);
+      const { data } = await client.get('/api/v1/simulations/scenarios');
+      spinner.stop();
+
+      const table = new Table({ head: ['ID', 'Name', 'Type', 'Difficulty', 'ATT&CK'].map(h => chalk.cyan(h)) });
+      for (const s of data.scenarios || []) {
+        table.push([s.id?.slice(0, 10), s.name, s.type, s.difficulty, (s.techniques || []).join(', ')]);
+      }
+      console.log(table.toString());
+    } catch (err: any) {
+      spinner.fail(chalk.red(`Failed: ${err.message}`));
+    }
+  });
+
+scenarioCmd
+  .command('results <scenarioId>')
+  .description('View scenario results')
+  .action(async (scenarioId) => {
+    const spinner = ora('Fetching results...').start();
+    try {
+      const client = createClient(program.opts().url, program.opts().token);
+      const { data } = await client.get(`/api/v1/simulations/scenarios/${scenarioId}/results`);
+      spinner.stop();
+
+      console.log(chalk.bold(`Scenario: ${data.name || scenarioId}`));
+      console.log(chalk.gray(`  Total attacks: ${data.total} | Detected: ${chalk.green(data.detected)} | Missed: ${chalk.red(data.missed)} | Blocked: ${chalk.yellow(data.blocked)}`));
+      console.log(chalk.gray(`  Avg detection time: ${data.avg_detection_sec?.toFixed(1) || '-'}s`));
+    } catch (err: any) {
+      spinner.fail(chalk.red(`Failed: ${err.message}`));
+    }
+  });
+
 // ── Banner ──────────────────────────────────────────────────────────────────
 
 program.addHelpText('beforeAll', `

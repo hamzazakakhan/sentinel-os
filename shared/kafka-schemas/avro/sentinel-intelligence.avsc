@@ -1,0 +1,24 @@
+{
+  "type": "record",
+  "name": "SentinelIntelligence",
+  "namespace": "io.sentinel.os",
+  "fields": [
+    { "name": "id", "type": "string" },
+    { "name": "source", "type": "string" },
+    { "name": "feed_type", "type": { "type": "enum", "name": "FeedType", "symbols": ["OSINT", "SIGINT", "CTI", "HUMINT"] } },
+    { "name": "title", "type": ["null", "string"], "default": null },
+    { "name": "content", "type": "string" },
+    { "name": "iocs", "type": { "type": "array", "items": { "type": "record", "name": "IOC", "fields": [
+      { "name": "type", "type": { "type": "enum", "name": "IOCType", "symbols": ["ip", "domain", "url", "hash_md5", "hash_sha256", "email", "cidr", "signature", "cve"] } },
+      { "name": "value", "type": "string" },
+      { "name": "confidence", "type": "double" },
+      { "name": "source", "type": "string" },
+      { "name": "tags", "type": { "type": "array", "items": "string" } }
+    ]}}},
+    { "name": "sentiment", "type": ["null", "double"], "default": null },
+    { "name": "credibility", "type": ["null", "double"], "default": null },
+    { "name": "collected_at", "type": { "type": "long", "logicalType": "timestamp-millis" } },
+    { "name": "tlp", "type": { "type": "enum", "name": "TLP", "symbols": ["TLP_RED", "TLP_AMBER_STRICT", "TLP_AMBER", "TLP_GREEN", "TLP_CLEAR"] } },
+    { "name": "classification", "type": { "type": "enum", "name": "Classification", "symbols": ["UNCLASSIFIED", "CUI", "CONFIDENTIAL", "SECRET", "TOP_SECRET", "TOP_SECRET_SCI"] } }
+  ]
+}

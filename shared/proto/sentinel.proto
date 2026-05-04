@@ -1,0 +1,50 @@
+// sentinel-os/shared/proto/sentinel.proto
+syntax = "proto3";
+package sentinel;
+
+option go_package = "github.com/sentinel-os/proto;sentinel";
+
+service SentinelService {
+  rpc GetAlerts(AlertRequest) returns (AlertResponse);
+  rpc StreamAlerts(AlertFilter) returns (stream Alert);
+  rpc GetSensors(SensorRequest) returns (SensorResponse);
+  rpc GetIntel(IntelRequest) returns (IntelResponse);
+  rpc ExecuteAction(ActionRequest) returns (ActionResponse);
+  rpc GetHealth(HealthRequest) returns (HealthResponse);
+}
+
+message Alert {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  string severity = 4;
+  string classification = 5;
+  string domain = 6;
+  string source = 7;
+  repeated IOC iocs = 8;
+  string status = 9;
+  int64 created_at = 10;
+  int64 updated_at = 11;
+}
+
+message IOC {
+  string type = 1;
+  string value = 2;
+  double confidence = 3;
+  string source = 4;
+  repeated string tags = 5;
+}
+
+message AlertRequest { int32 limit = 1; int32 offset = 2; string severity = 3; string status = 4; }
+message AlertResponse { repeated Alert alerts = 1; int32 total = 2; }
+message AlertFilter { string severity = 1; string domain = 2; string source = 3; }
+message SensorRequest { string type = 1; bool active_only = 2; }
+message SensorResponse { repeated SensorInfo sensors = 1; }
+message SensorInfo { string id = 1; string type = 2; string location = 3; bool active = 4; }
+message IntelRequest { string feed_type = 1; string query = 2; int32 limit = 3; }
+message IntelResponse { repeated IntelItem items = 1; int32 total = 2; }
+message IntelItem { string id = 1; string source = 2; string title = 3; string content = 4; repeated IOC iocs = 5; double credibility = 6; }
+message ActionRequest { string action_type = 1; map<string, string> parameters = 2; bool dry_run = 3; }
+message ActionResponse { string execution_id = 1; bool approved = 2; string status = 3; }
+message HealthRequest {}
+message HealthResponse { string service = 1; string status = 2; string version = 3; double uptime_sec = 4; map<string, string> dependencies = 5; }

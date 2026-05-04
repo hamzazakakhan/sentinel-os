@@ -1,0 +1,101 @@
+# ──────────────────────────────────────────────────────────────
+# sentinel-os/infrastructure/kubernetes/base/health-probes.yaml
+# Kubernetes health probes for all Sentinel OS services
+# Liveness, readiness, and startup probes
+# ──────────────────────────────────────────────────────────────
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-service
+  namespace: sentinel
+spec:
+  template:
+    spec:
+      containers:
+        - name: ai-service
+          image: ghcr.io/hamzazakakhan/sentinel-os/ai-service:latest
+          ports:
+            - containerPort: 4003
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 4003
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 4003
+            periodSeconds: 10
+            failureThreshold: 2
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: 4003
+            failureThreshold: 30
+            periodSeconds: 10
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sigint-service
+  namespace: sentinel
+spec:
+  template:
+    spec:
+      containers:
+        - name: sigint-service
+          image: ghcr.io/hamzazakakhan/sentinel-os/sigint-service:latest
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 2
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: 8080
+            failureThreshold: 20
+            periodSeconds: 10
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healing-agent
+  namespace: sentinel
+spec:
+  template:
+    spec:
+      containers:
+        - name: healing-agent
+          image: ghcr.io/hamzazakakhan/sentinel-os/healing-agent:latest
+          ports:
+            - containerPort: 4011
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 4011
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 4011
+            periodSeconds: 10
+            failureThreshold: 2

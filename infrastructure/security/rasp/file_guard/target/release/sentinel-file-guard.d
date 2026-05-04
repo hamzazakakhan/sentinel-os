@@ -1,0 +1,1 @@
+/home/kali/CascadeProjects/sentinel-os/infrastructure/security/rasp/file_guard/target/release/sentinel-file-guard: /home/kali/CascadeProjects/sentinel-os/infrastructure/security/rasp/file_guard/src/main.rs

@@ -1,0 +1,11 @@
+# sentinel-os/infrastructure/prometheus/service-monitors.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata: { name: sentinel-services, namespace: sentinel }
+spec:
+  selector: { matchLabels: { app.kubernetes.io/part-of: sentinel-os } }
+  namespaceSelector: { matchNames: [sentinel] }
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

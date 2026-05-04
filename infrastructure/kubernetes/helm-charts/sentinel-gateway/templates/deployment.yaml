@@ -1,0 +1,37 @@
+# sentinel-os/infrastructure/kubernetes/helm-charts/sentinel-gateway/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sentinel-gateway.fullname" . }}
+  labels: {{ include "sentinel-gateway.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels: {{ include "sentinel-gateway.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{ include "sentinel-gateway.selectorLabels" . | nindent 8 }}
+      annotations: { sidecar.istio.io/inject: "true" }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      securityContext: {{ toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: gateway
+          securityContext: {{ toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{ containerPort: {{ .Values.service.targetPort }} }]
+          envFrom: [{ configMapRef: { name: {{ include "sentinel-gateway.fullname" . }}-env } }]
+          env:
+            {{- range $key, $val := .Values.secrets }}
+            - name: {{ $key }}
+              valueFrom: {{ toYaml $val | nindent 16 }}
+            {{- end }}
+          volumeMounts: {{ toYaml .Values.volumeMounts | nindent 12 }}
+          livenessProbe: {{ toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe: {{ toYaml .Values.readinessProbe | nindent 12 }}
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+      volumes: {{ toYaml .Values.volumes | nindent 8 }}
+      nodeSelector: {{ toYaml .Values.nodeSelector | nindent 8 }}
+      tolerations: {{ toYaml .Values.tolerations | nindent 8 }}
+      affinity: {{ toYaml .Values.affinity | nindent 8 }}

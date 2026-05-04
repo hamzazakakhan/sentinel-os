@@ -1,0 +1,34 @@
+# ──────────────────────────────────────────────────────────────
+# sentinel-os/infrastructure/argocd/sentinel-app.yaml
+# ArgoCD Application — continuous GitOps reconciliation
+# Auto-reverts any manual kubectl changes within 3 minutes
+# ──────────────────────────────────────────────────────────────
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sentinel-os
+  namespace: argocd
+spec:
+  source:
+    repoURL: https://github.com/hamzazakakhan/sentinel-os.git
+    targetRevision: HEAD
+    path: infrastructure/kubernetes/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sentinel
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - RespectIgnoreDifferences=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

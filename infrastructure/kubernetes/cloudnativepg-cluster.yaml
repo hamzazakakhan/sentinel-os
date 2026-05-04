@@ -1,0 +1,150 @@
+# ──────────────────────────────────────────────────────────────
+# sentinel-os/infrastructure/kubernetes/cloudnativepg-cluster.yaml
+# CloudNativePG — PostgreSQL HA cluster for Sentinel OS
+# 3-node cluster: 1 primary + 2 replicas with streaming replication
+# ──────────────────────────────────────────────────────────────
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: sentinel-pg
+  namespace: sentinel
+  labels:
+    app.kubernetes.io/name: sentinel-pg
+    app.kubernetes.io/part-of: sentinel-os
+spec:
+  instances: 3
+
+  # PostgreSQL configuration
+  postgresql:
+    parameters:
+      max_connections: "200"
+      shared_buffers: "256MB"
+      effective_cache_size: "768MB"
+      wal_level: replica
+      hot_standby: "on"
+      max_wal_senders: "10"
+      max_replication_slots: "10"
+      log_statement: ddl
+      log_min_duration_statement: "1000"
+
+  # Bootstrap from initdb
+  bootstrap:
+    initdb:
+      database: sentinel
+      owner: sentinel
+      secret:
+        name: sentinel-pg-app
+      postInitSQL:
+        - CREATE EXTENSION IF NOT EXISTS postgis;
+        - CREATE EXTENSION IF NOT EXISTS pg_trgm;
+        - CREATE EXTENSION IF NOT EXISTS btree_gist;
+        - CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
+
+  # Superuser secret
+  superuserSecret:
+    name: sentinel-pg-superuser
+
+  # Storage
+  storage:
+    storageClass: local-path
+    size: 50Gi
+
+  # WAL storage
+  walStorage:
+    storageClass: local-path
+    size: 10Gi
+
+  # Monitoring
+  monitoring:
+    enablePodMonitor: true
+
+  # Backup (via Barman Object Store)
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://sentinel-pg-backups
+      s3Credentials:
+        accessKeyId:
+          name: sentinel-pg-backup-creds
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: sentinel-pg-backup-creds
+          key: SECRET_ACCESS_KEY
+      wal:
+        compression: gzip
+        maxParallel: 2
+      data:
+        compression: gzip
+        jobs:
+          - schedule: "0 3 * * *"
+            backupOwnerReference: cluster
+            retentionPolicy: "30d"
+
+  # Affinity — spread across nodes
+  affinity:
+    topologyKey: kubernetes.io/hostname
+    nodeSelector:
+      node-role.kubernetes.io/worker: "true"
+    tolerations:
+      - key: dedicated
+        operator: Equal
+        value: database
+        effect: NoSchedule
+
+  # Resources
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+  # Pod management — rolling updates
+  managed:
+    services:
+      readOnly:
+        enabled: true
+    roles:
+      - name: sentinel
+        superuser: false
+        createdb: true
+        createrole: false
+        login: true
+        passwordSecret:
+          name: sentinel-pg-app
+
+---
+# App credentials secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sentinel-pg-app
+  namespace: sentinel
+type: kubernetes.io/basic-auth
+stringData:
+  username: sentinel
+  password: CHANGE_ME_SENTINEL_PG_PASSWORD
+
+---
+# Superuser credentials secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sentinel-pg-superuser
+  namespace: sentinel
+type: kubernetes.io/basic-auth
+stringData:
+  username: postgres
+  password: CHANGE_ME_SENTINEL_PG_SUPERUSER
+
+---
+# Backup credentials (S3)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sentinel-pg-backup-creds
+  namespace: sentinel
+type: Opaque
+stringData:
+  ACCESS_KEY_ID: CHANGE_ME
+  SECRET_ACCESS_KEY: CHANGE_ME

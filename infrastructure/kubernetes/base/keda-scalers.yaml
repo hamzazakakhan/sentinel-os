@@ -1,0 +1,61 @@
+# ──────────────────────────────────────────────────────────────
+# sentinel-os/infrastructure/kubernetes/base/keda-scalers.yaml
+# KEDA ScaledObjects — Kafka-lag-based autoscaling
+# ──────────────────────────────────────────────────────────────
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: ai-service-scaler
+  namespace: sentinel
+spec:
+  scaleTargetRef:
+    name: ai-service
+  minReplicaCount: 2
+  maxReplicaCount: 12
+  triggers:
+    - type: kafka
+      metadata:
+        topic: sentinel.ai.inference-requests
+        bootstrapServers: kafka:9092
+        consumerGroup: ai-service-group
+        lagThreshold: "50"
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: ingestion-service-scaler
+  namespace: sentinel
+spec:
+  scaleTargetRef:
+    name: ingestion-service
+  minReplicaCount: 2
+  maxReplicaCount: 8
+  triggers:
+    - type: kafka
+      metadata:
+        topic: sentinel.ingestion.video-frames
+        bootstrapServers: kafka:9092
+        consumerGroup: ingestion-service-group
+        lagThreshold: "100"
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: cyber-service-scaler
+  namespace: sentinel
+spec:
+  scaleTargetRef:
+    name: cyber-service
+  minReplicaCount: 2
+  maxReplicaCount: 6
+  triggers:
+    - type: kafka
+      metadata:
+        topic: sentinel.cyber.threat-indicators
+        bootstrapServers: kafka:9092
+        consumerGroup: cyber-service-group
+        lagThreshold: "30"

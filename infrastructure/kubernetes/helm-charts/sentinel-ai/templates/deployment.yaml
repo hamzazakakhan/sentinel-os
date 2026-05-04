@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sentinel-ai.fullname" . }}
+  labels: {{ include "sentinel-ai.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels: {{ include "sentinel-ai.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{ include "sentinel-ai.selectorLabels" . | nindent 8 }}
+      annotations: { sidecar.istio.io/inject: "true" }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      securityContext: {{ toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: ai
+          securityContext: {{ toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports: [{ containerPort: {{ .Values.service.targetPort }} }]
+          envFrom: [{ configMapRef: { name: {{ include "sentinel-ai.fullname" . }}-env } }]
+          resources: {{ toYaml .Values.resources | nindent 12 }}

@@ -1,0 +1,29 @@
+# ──────────────────────────────────────────────────────────────
+# sentinel-os/infrastructure/kubernetes/policies/require-signed.yaml
+# Kyverno ClusterPolicy — enforce signed container images only
+# ──────────────────────────────────────────────────────────────
+
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: sentinel-require-signed-images
+spec:
+  validationFailureAction: Enforce
+  rules:
+    - name: verify-sentinel-images
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/hamzazakakhan/sentinel-os/*"
+          attestors:
+            - entries:
+                - keyless:
+                    subjectRegExp: "^https://github.com/hamzazakakhan/sentinel-os/.*"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: https://rekor.sigstore.dev

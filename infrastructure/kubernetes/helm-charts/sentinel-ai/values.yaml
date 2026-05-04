@@ -1,0 +1,31 @@
+replicaCount: 2
+image:
+  repository: sentinel-os/ai-service
+  pullPolicy: IfNotPresent
+  tag: "2.0.0"
+service:
+  type: ClusterIP
+  port: 5000
+  targetPort: 5000
+resources:
+  requests: { cpu: 200m, memory: 256Mi }
+  limits: { cpu: 500m, memory: 512Mi }
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+env:
+  NODE_ENV: production
+  KAFKA_BROKERS: "sentinel-kafka:9092"
+  PG_HOST: "sentinel-rds.prod.internal"
+serviceAccount:
+  create: true
+  name: "sentinel-ai"
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: { drop: ["ALL"] }

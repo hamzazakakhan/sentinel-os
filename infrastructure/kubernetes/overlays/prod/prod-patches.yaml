@@ -1,0 +1,12 @@
+# sentinel-os/infrastructure/kubernetes/overlays/prod/prod-patches.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: sentinel-gateway }
+spec: { replicas: 3 }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: sentinel-gateway-hpa }
+spec:
+  minReplicas: 3
+  maxReplicas: 10

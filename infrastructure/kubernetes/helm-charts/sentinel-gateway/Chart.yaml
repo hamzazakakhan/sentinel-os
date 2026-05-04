@@ -1,0 +1,9 @@
+# sentinel-os/infrastructure/kubernetes/helm-charts/sentinel-gateway/Chart.yaml
+apiVersion: v2
+name: sentinel-gateway
+description: Sentinel OS API Gateway (Apollo GraphQL + Strawberry)
+type: application
+version: 0.1.0
+appVersion: "2.0.0"
+keywords: [sentinel, api-gateway, graphql]
+maintainers: [{ name: sentinel-team }]

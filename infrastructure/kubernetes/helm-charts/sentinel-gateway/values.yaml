@@ -1,0 +1,82 @@
+# sentinel-os/infrastructure/kubernetes/helm-charts/sentinel-gateway/values.yaml
+replicaCount: 2
+
+image:
+  repository: sentinel-os/api-gateway
+  pullPolicy: IfNotPresent
+  tag: "2.0.0"
+
+service:
+  type: ClusterIP
+  port: 4000
+  targetPort: 4000
+
+ingress:
+  enabled: true
+  className: istio
+  hosts:
+    - host: api.sentinel-os.local
+      paths: [{ path: /, pathType: Prefix }]
+
+resources:
+  requests: { cpu: 250m, memory: 256Mi }
+  limits: { cpu: 1000m, memory: 512Mi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+env:
+  NODE_ENV: production
+  PORT: "4000"
+  KAFKA_BROKERS: "sentinel-kafka:9092"
+  PG_HOST: "sentinel-rds.prod.internal"
+  PG_PORT: "5432"
+  PG_DATABASE: "sentinel"
+  REDIS_URL: "redis://sentinel-redis:6379"
+
+secrets:
+  JWT_PRIVATE_KEY_PATH: /etc/sentinel/jwt/private.pem
+  PG_PASSWORD: { secretRef: { name: sentinel-db-credentials, key: password } }
+
+volumeMounts:
+  - name: jwt-keys
+    mountPath: /etc/sentinel/jwt
+    readOnly: true
+
+volumes:
+  - name: jwt-keys
+    secret: { secretName: sentinel-jwt-keys }
+
+livenessProbe:
+  httpGet: { path: /health, port: 4000 }
+  initialDelaySeconds: 15
+  periodSeconds: 20
+readinessProbe:
+  httpGet: { path: /health, port: 4000 }
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+serviceAccount:
+  create: true
+  name: "sentinel-gateway"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: { drop: ["ALL"] }
+
+nodeSelector: {}
+tolerations: []
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm: { labelSelector: { matchExpressions: [{ key: app.kubernetes.io/name, operator: In, values: ["sentinel-gateway"] }] }, topologyKey: kubernetes.io/hostname }

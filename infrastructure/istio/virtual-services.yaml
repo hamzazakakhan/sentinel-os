@@ -1,0 +1,36 @@
+# sentinel-os/infrastructure/istio/virtual-services.yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata: { name: sentinel-gateway, namespace: sentinel }
+spec:
+  hosts: [api.sentinel-os.local]
+  gateways: [sentinel-gateway]
+  http:
+    - route: [{ destination: { host: sentinel-gateway, port: { number: 4000 } } }]
+      retries: { attempts: 3, perTryTimeout: 5s }
+      timeout: 30s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata: { name: sentinel-ui, namespace: sentinel }
+spec:
+  hosts: [app.sentinel-os.local]
+  gateways: [sentinel-gateway]
+  http:
+    - route: [{ destination: { host: sentinel-ui, port: { number: 3000 } } }]
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata: { name: sentinel-services, namespace: sentinel }
+spec:
+  host: "*.sentinel.svc.cluster.local"
+  trafficPolicy:
+    tls: { mode: ISTIO_MUTUAL }
+    connectionPool:
+      tcp: { maxConnections: 100 }
+      http: { h2UpgradePolicy: UPGRADE, http1MaxPendingRequests: 100, http2MaxRequests: 100 }
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50

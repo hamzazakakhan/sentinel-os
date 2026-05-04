@@ -1,0 +1,29 @@
+# sentinel-os/infrastructure/istio/authorization-policies.yaml
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata: { name: default, namespace: sentinel }
+spec:
+  mtls: { mode: STRICT }
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata: { name: gateway-only, namespace: sentinel }
+spec:
+  selector: { matchLabels: { app: sentinel-gateway } }
+  rules:
+    - from: [{ source: { principals: ["cluster.local/ns/istio-system/sa/istio-ingressgateway"] } }]
+      to: [{ operation: { methods: ["GET", "POST", "OPTIONS"], paths: ["/*"] } }]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata: { name: internal-only, namespace: sentinel }
+spec:
+  selector: { matchLabels: { tier: backend } }
+  rules:
+    - from: [{ source: { namespaces: ["sentinel"] } }]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata: { name: deny-all-default, namespace: sentinel }
+spec: { rules: [{}] }
+  action: DENY

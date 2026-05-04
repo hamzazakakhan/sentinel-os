@@ -1,0 +1,81 @@
+# ──────────────────────────────────────────────────────────────
+# sentinel-os/infrastructure/chaos/ai-service-pod-delete.yaml
+# LitmusChaos experiment — pod-delete on ai-service
+# Verifies K8s restarts pods in <15s
+# ──────────────────────────────────────────────────────────────
+
+---
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: sentinel-ai-chaos
+  namespace: sentinel
+spec:
+  appinfo:
+    appns: sentinel
+    applabel: "app=ai-service"
+    appkind: deployment
+  chaosServiceAccount: litmus-admin
+  experiments:
+    - name: pod-delete
+      spec:
+        components:
+          env:
+            - name: TOTAL_CHAOS_DURATION
+              value: "60"
+            - name: CHAOS_INTERVAL
+              value: "10"
+            - name: FORCE
+              value: "false"
+  monitoring:
+    enabled: true
+
+---
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: sentinel-fusion-chaos
+  namespace: sentinel
+spec:
+  appinfo:
+    appns: sentinel
+    applabel: "app=fusion-service"
+    appkind: deployment
+  chaosServiceAccount: litmus-admin
+  experiments:
+    - name: pod-cpu-hog
+      spec:
+        components:
+          env:
+            - name: TOTAL_CHAOS_DURATION
+              value: "60"
+            - name: CHAOS_INTERVAL
+              value: "10"
+  monitoring:
+    enabled: true
+
+---
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: sentinel-kafka-chaos
+  namespace: sentinel
+spec:
+  appinfo:
+    appns: sentinel
+    applabel: "app=kafka"
+    appkind: statefulset
+  chaosServiceAccount: litmus-admin
+  experiments:
+    - name: container-kill
+      spec:
+        components:
+          env:
+            - name: TOTAL_CHAOS_DURATION
+              value: "30"
+            - name: CHAOS_INTERVAL
+              value: "10"
+            - name: FORCE
+              value: "false"
+  monitoring:
+    enabled: true

@@ -1,0 +1,55 @@
+# ──────────────────────────────────────────────────────────────
+# sentinel-os/infrastructure/falco/sentinel-rules.yaml
+# Falco runtime behaviour monitoring rules for Sentinel OS
+# Detects binary tampering, shell spawning, unauthorized writes
+# ──────────────────────────────────────────────────────────────
+
+---
+- rule: Sentinel Binary Tamper Detected
+  desc: A process wrote to a Sentinel OS service executable
+  condition: >
+    open_write AND
+    fd.name startswith /opt/sentinel/ AND
+    (fd.name endswith .js OR fd.name endswith .py OR fd.name endswith .ts) AND
+    NOT proc.name in (node, python3, npm, tsx)
+  output: >
+    TAMPER ALERT: %proc.name wrote to %fd.name
+    (user=%user.name container=%container.name)
+  priority: CRITICAL
+  tags: [sentinel, tamper, file_integrity]
+
+- rule: Sentinel Shell Spawned in Container
+  desc: Unexpected shell in Sentinel service container
+  condition: >
+    spawned_process AND
+    proc.name in (bash, sh, zsh, dash) AND
+    container.name startswith sentinel-
+  output: >
+    CRITICAL: Shell %proc.name in %container.name
+    (user=%user.name parent=%proc.pname)
+  priority: CRITICAL
+  tags: [sentinel, tamper, container_escape]
+
+- rule: Sentinel Config Modified at Runtime
+  desc: A Sentinel service config file was modified at runtime
+  condition: >
+    open_write AND
+    fd.name startswith /opt/sentinel/ AND
+    (fd.name endswith .json OR fd.name endswith .yaml OR fd.name endswith .yml OR fd.name endswith .env) AND
+    NOT proc.name in (node, npm, python3)
+  output: >
+    CONFIG TAMPER: %proc.name modified %fd.name
+    (user=%user.name container=%container.name)
+  priority: WARNING
+  tags: [sentinel, tamper, config]
+
+- rule: Sentinel Unauthorized Network Connection
+  desc: Unexpected outbound connection from a sealed Sentinel pod
+  condition: >
+    outbound AND
+    container.name startswith sentinel- AND
+    NOT fd.sip in (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, localhost)
+  output: >
+    NETWORK ALERT: %proc.name connected to %fd.sip:%fd.sport from %container.name
+  priority: WARNING
+  tags: [sentinel, network, exfiltration]

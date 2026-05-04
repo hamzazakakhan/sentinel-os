@@ -1,0 +1,69 @@
+# ──────────────────────────────────────────────────────────────
+# sentinel-os/infrastructure/istio/circuit-breakers.yaml
+# Istio DestinationRule — circuit breaker + outlier detection
+# ──────────────────────────────────────────────────────────────
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sentinel-circuit-breaker
+  namespace: sentinel
+spec:
+  host: ai-service
+  trafficPolicy:
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 200
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    retries:
+      attempts: 3
+      perTryTimeout: 5s
+      retryOn: "5xx,reset,connect-failure"
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: fusion-service-circuit-breaker
+  namespace: sentinel
+spec:
+  host: fusion-service
+  trafficPolicy:
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    retries:
+      attempts: 3
+      perTryTimeout: 5s
+      retryOn: "5xx,reset,connect-failure"
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sigint-service-circuit-breaker
+  namespace: sentinel
+spec:
+  host: sigint-service
+  trafficPolicy:
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 200
+        http2MaxRequests: 400
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50

@@ -1,0 +1,51 @@
+# sentinel-os/infrastructure/prometheus/alerts.yaml
+groups:
+  - name: sentinel-critical
+    rules:
+      - alert: SentinelServiceDown
+        expr: up{job=~"sentinel-.*"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "Sentinel service {{ $labels.job }} is down", description: "Service {{ $labels.job }} on {{ $labels.instance }} has been down for >2m" }
+
+      - alert: SentinelHighErrorRate
+        expr: rate(http_requests_total{job=~"sentinel-.*",code=~"5.."}[5m]) / rate(http_requests_total{job=~"sentinel-.*"}[5m]) > 0.05
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "High 5xx rate on {{ $labels.job }}" }
+
+      - alert: SentinelKafkaLag
+        expr: kafka_consumer_group_lag{group=~"sentinel-.*"} > 10000
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "Kafka consumer lag >10k on {{ $labels.group }}" }
+
+      - alert: SentinelKafkaLagCritical
+        expr: kafka_consumer_group_lag{group=~"sentinel-.*"} > 100000
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: "Kafka consumer lag >100k on {{ $labels.group }}" }
+
+      - alert: SentinelDatabaseConnectionsHigh
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "PostgreSQL connections >80" }
+
+      - alert: SentinelRedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "Redis memory usage >85%" }
+
+      - alert: SentinelPodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total{namespace="sentinel"}[15m]) > 0
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "Pod {{ $labels.pod }} is crash-looping" }
+
+      - alert: SentinelHighLatency
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job=~"sentinel-.*"}[5m])) > 2
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "P99 latency >2s on {{ $labels.job }}" }

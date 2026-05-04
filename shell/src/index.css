@@ -1,0 +1,239 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --void: #000407;
+    --deep: #010912;
+    --panel: #061525;
+    --crt: #00e5ff;
+    --lime: #76ff03;
+    --ember: #ff6f00;
+    --blood: #d50000;
+    --gold: #ffd600;
+    --text1: #b2ebf2;
+    --text2: #2e6e87;
+    --text3: #1a4d78;
+    --border: #0e2a44;
+  }
+
+  * { scrollbar-width: thin; scrollbar-color: #0e2a44 transparent; }
+  *::-webkit-scrollbar { width: 4px; height: 4px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background-color: #0e2a44; border-radius: 2px; }
+}
+
+@layer components {
+  /* ── CRT Scanline overlay ──────────────────────────────── */
+  .scanlines {
+    position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0, 229, 255, 0.015) 0px,
+      rgba(0, 229, 255, 0.015) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  }
+
+  /* ── Vignette overlay ─────────────────────────────────── */
+  .vignette {
+    position: fixed; inset: 0; z-index: 9998; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,4,7,0.7) 100%);
+  }
+
+  /* ── Top chrome bar ────────────────────────────────────── */
+  .os-chrome {
+    @apply fixed top-0 left-0 right-0 z-50 h-10 flex items-center justify-between px-4;
+    background: linear-gradient(180deg, #0a1a2e 0%, #061525 100%);
+    border-bottom: 1px solid var(--border);
+    font-family: 'Space Mono', monospace;
+  }
+  .os-mark {
+    @apply text-lg font-bold tracking-widest mr-6;
+    font-family: 'Bebas Neue', sans-serif;
+    color: var(--crt);
+    text-shadow: 0 0 10px rgba(0,229,255,0.5);
+  }
+  .chrome-nav {
+    @apply flex gap-1;
+  }
+  .chrome-nav a {
+    @apply px-3 py-1 text-xs font-mono tracking-wider cursor-pointer transition-colors;
+    color: var(--text2);
+    border: 1px solid transparent;
+  }
+  .chrome-nav a:hover { color: var(--text1); border-color: var(--border); }
+  .chrome-nav a.active {
+    color: var(--crt);
+    border-color: var(--crt);
+    background: rgba(0,229,255,0.08);
+    text-shadow: 0 0 6px rgba(0,229,255,0.4);
+  }
+  .chrome-right {
+    @apply flex items-center gap-4;
+  }
+  .chrome-stat {
+    @apply text-[10px] font-mono tracking-wide;
+    color: var(--text2);
+  }
+  .chrome-stat b { color: var(--crt); }
+  .chrome-clock {
+    @apply text-xs font-mono;
+    color: var(--crt);
+    text-shadow: 0 0 6px rgba(0,229,255,0.4);
+  }
+
+  /* ── Panel area ────────────────────────────────────────── */
+  .panel-area {
+    @apply fixed top-10 left-0 right-0 bottom-0 flex flex-wrap gap-1 p-1 overflow-hidden;
+    background: var(--void);
+  }
+
+  /* ── Panel card ────────────────────────────────────────── */
+  .panel {
+    @apply flex flex-col overflow-hidden;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    position: relative;
+  }
+  .panel::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--crt), transparent);
+    opacity: 0.6;
+  }
+  .panel-header {
+    @apply flex items-center gap-2 px-3 py-1.5 text-xs font-mono tracking-wider;
+    color: var(--crt);
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,229,255,0.03);
+    text-shadow: 0 0 4px rgba(0,229,255,0.3);
+  }
+  .panel-icon { opacity: 0.7; }
+
+  /* ── Buttons ───────────────────────────────────────────── */
+  .btn-crt {
+    @apply px-3 py-1.5 text-xs font-mono tracking-wider rounded border transition-all;
+    color: var(--crt); border-color: var(--crt); background: rgba(0,229,255,0.08);
+  }
+  .btn-crt:hover { background: rgba(0,229,255,0.2); text-shadow: 0 0 6px rgba(0,229,255,0.5); }
+
+  .btn-lime {
+    @apply px-3 py-1.5 text-xs font-mono tracking-wider rounded border transition-all;
+    color: var(--lime); border-color: var(--lime); background: rgba(118,255,3,0.08);
+  }
+  .btn-lime:hover { background: rgba(118,255,3,0.2); }
+
+  .btn-ember {
+    @apply px-3 py-1.5 text-xs font-mono tracking-wider rounded border transition-all;
+    color: var(--ember); border-color: var(--ember); background: rgba(255,111,0,0.08);
+  }
+  .btn-ember:hover { background: rgba(255,111,0,0.2); }
+
+  .btn-blood {
+    @apply px-3 py-1.5 text-xs font-mono tracking-wider rounded border transition-all;
+    color: var(--blood); border-color: var(--blood); background: rgba(213,0,0,0.08);
+  }
+  .btn-blood:hover { background: rgba(213,0,0,0.2); }
+
+  .btn-gold {
+    @apply px-3 py-1.5 text-xs font-mono tracking-wider rounded border transition-all;
+    color: var(--gold); border-color: var(--gold); background: rgba(255,214,0,0.08);
+  }
+  .btn-gold:hover { background: rgba(255,214,0,0.2); }
+
+  /* ── Badges ────────────────────────────────────────────── */
+  .b { @apply inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider; }
+  .bc { @apply b; color: var(--crt); background: rgba(0,229,255,0.12); }
+  .bg { @apply b; color: var(--lime); background: rgba(118,255,3,0.12); }
+  .be { @apply b; color: var(--ember); background: rgba(255,111,0,0.12); }
+  .br { @apply b; color: var(--blood); background: rgba(213,0,0,0.12); }
+  .bd { @apply b; color: var(--gold); background: rgba(255,214,0,0.12); }
+
+  /* ── Code / terminal blocks ───────────────────────────── */
+  .code {
+    @apply p-3 rounded font-mono text-xs leading-relaxed overflow-x-auto;
+    background: var(--deep);
+    color: var(--text1);
+    border: 1px solid var(--border);
+  }
+
+  /* ── Alert blocks ──────────────────────────────────────── */
+  .alert {
+    @apply p-3 rounded border-l-4 text-xs font-mono;
+    background: var(--panel);
+  }
+  .alert.g { border-color: var(--lime); color: var(--lime); }
+  .alert.e { border-color: var(--ember); color: var(--ember); }
+  .alert.r { border-color: var(--blood); color: var(--blood); }
+  .alert.b { border-color: var(--crt); color: var(--crt); }
+
+  /* ── Boot screen ──────────────────────────────────────── */
+  .boot-screen {
+    @apply fixed inset-0 flex flex-col items-center justify-center;
+    background: var(--void);
+  }
+  .boot-logo {
+    @apply text-6xl font-bold tracking-[0.3em] mb-8;
+    font-family: 'Bebas Neue', sans-serif;
+    color: var(--crt);
+    text-shadow: 0 0 30px rgba(0,229,255,0.6), 0 0 60px rgba(0,229,255,0.3);
+    animation: bootPulse 1.5s ease-in-out infinite alternate;
+  }
+  .boot-log {
+    @apply flex flex-col gap-1 text-xs font-mono mb-6;
+    color: var(--text2);
+  }
+  .boot-log span { opacity: 0; animation: bootFade 0.3s ease forwards; }
+  .boot-log span:nth-child(1) { animation-delay: 0.2s; }
+  .boot-log span:nth-child(2) { animation-delay: 0.5s; }
+  .boot-log span:nth-child(3) { animation-delay: 0.8s; }
+  .boot-log span:nth-child(4) { animation-delay: 1.1s; }
+  .boot-log span:nth-child(5) { animation-delay: 1.4s; }
+  .boot-log span:nth-child(6) { animation-delay: 1.7s; }
+  .boot-log span:nth-child(7) { animation-delay: 2.0s; }
+  .boot-log span:nth-child(8) { animation-delay: 2.3s; }
+  .boot-log span:nth-child(9) { animation-delay: 2.6s; }
+  .boot-log span:nth-child(10) { animation-delay: 2.9s; }
+  .boot-bar-wrap {
+    @apply w-64 h-1 rounded-full overflow-hidden;
+    background: var(--deep);
+  }
+  .boot-bar {
+    @apply h-full rounded-full;
+    background: linear-gradient(90deg, var(--crt), var(--lime));
+    animation: bootBar 3s ease-out forwards;
+  }
+
+  @keyframes bootPulse {
+    from { opacity: 0.7; text-shadow: 0 0 20px rgba(0,229,255,0.4); }
+    to { opacity: 1; text-shadow: 0 0 40px rgba(0,229,255,0.8); }
+  }
+  @keyframes bootFade {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Terminal ──────────────────────────────────────────── */
+  .prompt { color: var(--crt); }
+  .output-crt { color: var(--text1); }
+  .output-ember { color: var(--ember); }
+  .output-lime { color: var(--lime); }
+  .cursor-blink { animation: blink 1s step-end infinite; color: var(--crt); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* ── Map ────────────────────────────────────────────────── */
+  .map-overlay-tl, .map-overlay-tr, .map-overlay-bl {
+    @apply absolute text-[9px] font-mono pointer-events-none;
+    color: var(--text2);
+  }
+  .map-overlay-tl { top: 8px; left: 8px; }
+  .map-overlay-tr { top: 8px; right: 8px; }
+  .map-overlay-bl { bottom: 8px; left: 8px; }
+
+  /* ── Waterfall canvas ──────────────────────────────────── */
+  .waterfall-canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+}

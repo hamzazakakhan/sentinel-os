@@ -1,0 +1,47 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nickel-org/tauri-v2/main/tooling/cli/schema.json",
+  "productName": "Sentinel OS",
+  "version": "2.0.0",
+  "identifier": "com.sentinel-os.shell",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "sentinel-hud",
+        "title": "SENTINEL OS",
+        "fullscreen": true,
+        "decorations": false,
+        "transparent": false,
+        "resizable": true,
+        "width": 1920,
+        "height": 1080
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' http://localhost:* ws://localhost:* https:; font-src 'self' https://fonts.gstatic.com"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "appimage"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png"
+    ]
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    },
+    "fs": {
+      "scope": ["$APPDATA/**", "$DOWNLOAD/**", "$DOCUMENT/**"]
+    }
+  }
+}

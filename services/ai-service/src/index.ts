@@ -1,6 +1,6 @@
 import express from 'express';
 import { Kafka, Consumer, Producer, EachMessagePayload } from 'kafkajs';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { Pool } from 'pg';
 import { createLogger } from './utils/logger.js';
 import { YoloV8Detector } from './models/yolov8/detector.js';

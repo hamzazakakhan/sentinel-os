@@ -2,14 +2,14 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import { Pool } from 'pg';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
 import { readFileSync } from 'fs';
 import { v4 as uuid } from 'uuid';
-import pino from 'pino';
+import { pino } from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'auth-service' });
 const PORT = parseInt(process.env.PORT || '4001', 10);
@@ -60,7 +60,7 @@ function generateAccessToken(user: any): string {
   };
   return jwt.sign(payload, JWT_PRIVATE_KEY, {
     algorithm: JWT_PRIVATE_KEY.includes('BEGIN') ? 'RS256' : 'HS256',
-    expiresIn: ACCESS_TOKEN_EXPIRY,
+    expiresIn: ACCESS_TOKEN_EXPIRY as any,
   });
 }
 
@@ -68,7 +68,7 @@ function generateRefreshToken(userId: string, sessionId: string): string {
   return jwt.sign(
     { sub: userId, sid: sessionId, type: 'refresh', jti: uuid() },
     JWT_PRIVATE_KEY,
-    { algorithm: JWT_PRIVATE_KEY.includes('BEGIN') ? 'RS256' : 'HS256', expiresIn: REFRESH_TOKEN_EXPIRY },
+    { algorithm: JWT_PRIVATE_KEY.includes('BEGIN') ? 'RS256' : 'HS256', expiresIn: REFRESH_TOKEN_EXPIRY as any },
   );
 }
 

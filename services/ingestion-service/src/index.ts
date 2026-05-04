@@ -1,6 +1,6 @@
 import express from 'express';
 import { Kafka, Producer } from 'kafkajs';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { createLogger } from './utils/logger.js';
 import { RtspConnector } from './connectors/rtsp/connector.js';
 import { MqttConnector } from './connectors/mqtt/connector.js';

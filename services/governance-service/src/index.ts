@@ -1,11 +1,11 @@
 import express from 'express';
 import { Kafka, Producer, Consumer, EachMessagePayload } from 'kafkajs';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { Pool } from 'pg';
 import { CronJob } from 'cron';
 import { v4 as uuid } from 'uuid';
 import { createHash } from 'crypto';
-import pino from 'pino';
+import { pino } from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'governance-service' });
 const PORT = parseInt(process.env.PORT || '4009', 10);

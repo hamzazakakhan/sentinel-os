@@ -1,6 +1,6 @@
 import { Producer } from 'kafkajs';
 import { Pool } from 'pg';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { v4 as uuid } from 'uuid';
 import { YoloV8Detector } from '../models/yolov8/detector.js';
 import { IsolationForestDetector } from '../models/isolation-forest/detector.js';
@@ -180,7 +180,7 @@ export class InferencePipelineManager {
     }
 
     await this.deps.driftMonitor.recordPrediction('isolation-forest', {
-      isAnomaly: result.isAnomaly,
+      isAnomaly: result.isAnomaly ? 1 : 0,
       anomalyScore: result.anomalyScore,
       inferenceTimeMs: result.inferenceTimeMs,
     });

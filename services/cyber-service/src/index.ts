@@ -1,12 +1,12 @@
 import express from 'express';
 import { Kafka, Producer, Consumer, EachMessagePayload } from 'kafkajs';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { Pool } from 'pg';
 import { Client as ElasticsearchClient } from '@elastic/elasticsearch';
 import axios from 'axios';
 import { CronJob } from 'cron';
 import { v4 as uuid } from 'uuid';
-import pino from 'pino';
+import { pino } from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'cyber-service' });
 const PORT = parseInt(process.env.PORT || '4006', 10);

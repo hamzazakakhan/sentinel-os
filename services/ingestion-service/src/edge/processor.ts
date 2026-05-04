@@ -1,4 +1,4 @@
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('edge-processor');

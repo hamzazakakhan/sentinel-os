@@ -1,9 +1,9 @@
 import express from 'express';
 import { Kafka, Producer, Consumer, EachMessagePayload } from 'kafkajs';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { Pool } from 'pg';
 import { v4 as uuid } from 'uuid';
-import pino from 'pino';
+import { pino } from 'pino';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'simulation-service' });
 const PORT = parseInt(process.env.PORT || '4008', 10);

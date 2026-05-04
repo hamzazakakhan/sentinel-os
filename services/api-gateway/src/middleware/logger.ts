@@ -1,4 +1,4 @@
-import pino from 'pino';
+import { pino } from 'pino';
 
 const BASE_CONFIG: pino.LoggerOptions = {
   level: process.env.LOG_LEVEL || 'info',

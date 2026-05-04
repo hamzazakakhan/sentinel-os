@@ -44,6 +44,7 @@ async function bootstrap(): Promise<void> {
   const typeDefs = readFileSync(join(__dirname, 'schema', 'typeDefs.graphql'), 'utf-8');
 
   let schema = makeExecutableSchema({ typeDefs, resolvers });
+  schema = depthLimit(DEPTH_LIMIT)(schema);
   schema = classificationDirective(schema);
   schema = rateLimitDirective(schema);
 
@@ -85,7 +86,6 @@ async function bootstrap(): Promise<void> {
 
   const server = new ApolloServer<SentinelContext>({
     schema,
-    validationRules: [depthLimit(DEPTH_LIMIT)],
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
       {

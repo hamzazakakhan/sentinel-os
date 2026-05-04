@@ -1,6 +1,6 @@
 import { PubSub } from 'graphql-subscriptions';
 import { RedisPubSub } from 'graphql-redis-subscriptions';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 
 export const SUBSCRIPTION_EVENTS = {
   ALERT_CREATED: 'ALERT_CREATED',

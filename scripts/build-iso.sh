@@ -77,6 +77,9 @@ lb config \
 BINARY_ISO_SCRIPT="/usr/lib/live/build/binary_iso"
 if grep -q "isohybrid-mbr" "${BINARY_ISO_SCRIPT}"; then
   cp "${BINARY_ISO_SCRIPT}" "${BINARY_ISO_SCRIPT}.bak"
+  # Remove the entire syslinux block (lines between 'if syslinux' and 'elif grub-pc')
+  # to avoid leaving an empty then/elif which causes a syntax error
+  sed -i '/if.*syslinux/,/elif.*grub-pc/{/if.*syslinux/!d}' "${BINARY_ISO_SCRIPT}"
   sed -i '/-isohybrid-mbr/d' "${BINARY_ISO_SCRIPT}"
   sed -i '/-partition_offset/d' "${BINARY_ISO_SCRIPT}"
   log "Patched binary_iso to remove DVD size limit (USB-only image)"
@@ -275,8 +278,11 @@ curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stabl
 # Install helm (get-helm-3 uses [[ bash syntax ]])
 curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash || echo "helm install skipped"
 
-# Install ollama (install.sh uses bash syntax)
-curl -fsSL https://ollama.com/install.sh | bash || echo "ollama install skipped"
+# Install ollama (install.sh uses bash syntax) — retry up to 3 times
+for _i in 1 2 3; do
+  curl -fsSL https://ollama.com/install.sh | bash && break || echo "ollama install attempt $_i failed, retrying..."
+  sleep 5
+done || echo "ollama install skipped after 3 attempts"
 
 # Install argocd CLI
 curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64 2>/dev/null && chmod +x /usr/local/bin/argocd || echo "argocd install skipped"
@@ -320,6 +326,12 @@ if [ -d "/opt/sentinel/shell" ]; then
   npm install --production 2>/dev/null || true
 fi
 
+# Create sentinel user for autologin and add to autologin group
+id sentinel 2>/dev/null || useradd -m -s /bin/bash sentinel 2>/dev/null || true
+groupadd -f autologin 2>/dev/null || true
+usermod -aG autologin,sudo,docker sentinel 2>/dev/null || true
+echo "sentinel:sentinel" | chpasswd 2>/dev/null || true
+
 # Mark docker-compose stack as ready if secrets were populated
 if [ -f /opt/sentinel/infrastructure/docker/.ready ]; then
   echo "Docker stack marked ready"
@@ -360,6 +372,8 @@ EOF
 mkdir -p "${OVERLAY_DIR}/etc/lightdm/lightdm.conf.d"
 cat > "${OVERLAY_DIR}/etc/lightdm/lightdm.conf.d/50-sentinel.conf" << 'EOF'
 [Seat:*]
+autologin-user=sentinel
+autologin-session=i3
 user-session=i3
 greeter-session=lightdm-gtk-greeter
 EOF

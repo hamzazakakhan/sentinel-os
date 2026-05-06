@@ -341,10 +341,11 @@ apt-get install -y cmake git build-essential libusb-1.0-0-dev librtlsdr-dev 2>/d
 cd /tmp
 git clone https://github.com/antirez/dump1090.git 2>/dev/null && cd dump1090 && make && make install 2>/dev/null || true
 cd /tmp
-git clone https://github.com/TLeconte/acarsdec.git 2>/dev/null && cd acarsdec && mkdir build && cd build && cmake .. && make && make install 2>/dev/null || true
+# acarsdec skipped - CMakeLists.txt incompatible with CMake 4.3.1 (requires < 3.5)
+# git clone https://github.com/TLeconte/acarsdec.git 2>/dev/null && cd acarsdec && mkdir build && cd build && cmake .. && make && make install 2>/dev/null || true
 cd /tmp
 pip3 install volatility3 2>/dev/null || true
-rm -rf /tmp/dump1090 /tmp/acarsdec
+rm -rf /tmp/dump1090
 
 # Install Sentinel OS npm service dependencies
 cd /opt/sentinel/services && for svc in */; do

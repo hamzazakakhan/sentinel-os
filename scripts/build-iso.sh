@@ -144,7 +144,6 @@ fonts-jetbrains-mono
 dbus-x11
 picom
 libwebkit2gtk-4.1-0
-libgtk-3-0
 libayatana-appindicator3-1
 librsvg2-2
 libnotify-bin

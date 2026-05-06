@@ -362,8 +362,10 @@ if [ -d "/opt/sentinel/shell" ]; then
   npm run build 2>/dev/null
   if [ ! -d "dist" ]; then
     echo "WARNING: Frontend build failed, dist folder not found"
+  elif [ ! -f "dist/index.html" ]; then
+    echo "WARNING: Frontend build incomplete, dist/index.html missing"
   else
-    echo "Frontend build successful, dist folder created"
+    echo "Frontend build successful, dist folder created with index.html"
   fi
 
   # Build the Tauri binary

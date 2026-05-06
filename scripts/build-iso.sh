@@ -1020,7 +1020,7 @@ DISTRIB_DESCRIPTION="Sentinel OS ${VERSION}"
 EOF
 
 # ── GRUB boot menu branding ──
-mkdir -p "${OVERLAY_DIR}/etc/default"
+mkdir -p "${OVERLAY_DIR}/etc/default/grub.d"
 cat > "${OVERLAY_DIR}/etc/default/grub.d/sentinel.cfg" << 'EOF'
 GRUB_DISTRIBUTOR="Sentinel OS"
 GRUB_TIMEOUT=5

@@ -143,6 +143,11 @@ network-manager-gnome
 fonts-jetbrains-mono
 dbus-x11
 picom
+libwebkit2gtk-4.1-0
+libgtk-3-0
+libayatana-appindicator3-1
+librsvg2-2
+libnotify-bin
 linux-image-amd64
 linux-headers-amd64
 firmware-iwlwifi
@@ -330,10 +335,33 @@ cd /opt/sentinel/services && for svc in */; do
   fi
 done
 
-# Build Sentinel OS shell (Tauri)
+# Build Sentinel OS shell (Tauri v2)
 if [ -d "/opt/sentinel/shell" ]; then
+  # Install Tauri build dependencies
+  apt-get install -y --no-install-recommends \
+    libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+    librsvg2-dev libssl-dev pkg-config 2>/dev/null || true
+
   cd /opt/sentinel/shell
-  npm install --production 2>/dev/null || true
+  npm install 2>/dev/null || true
+
+  # Build the frontend
+  npm run build 2>/dev/null || true
+
+  # Build the Tauri binary
+  if [ -d "src-tauri" ]; then
+    cd src-tauri
+    cargo build --release 2>/dev/null || true
+    # Install the built binary
+    if [ -f "target/release/sentinel-shell" ]; then
+      cp target/release/sentinel-shell /usr/local/bin/sentinel-shell
+      chmod +x /usr/local/bin/sentinel-shell
+      echo "Sentinel Shell (Tauri) built and installed"
+    else
+      echo "WARNING: Tauri build did not produce binary, shell will not be available"
+    fi
+    cd /opt/sentinel/shell
+  fi
 fi
 
 # Create sentinel user for autologin and add to autologin group
@@ -363,6 +391,14 @@ echo "Created i3 xsession desktop entry"
 # Enable LightDM as default display manager
 echo "/usr/sbin/lightdm" > /etc/X11/default-display-manager 2>/dev/null || true
 dpkg-reconfigure -f noninteractive lightdm 2>/dev/null || true
+
+# Allow sentinel to run docker without password
+echo "sentinel ALL=(ALL) NOPASSWD: /usr/bin/docker, /usr/bin/docker-compose, /usr/bin/docker compose" > /etc/sudoers.d/sentinel-docker 2>/dev/null || true
+chmod 440 /etc/sudoers.d/sentinel-docker 2>/dev/null || true
+
+# Enable docker service on boot
+systemctl enable docker 2>/dev/null || true
+systemctl enable lightdm 2>/dev/null || true
 
 # Mark docker-compose stack as ready if secrets were populated
 if [ -f /opt/sentinel/infrastructure/docker/.ready ]; then
@@ -548,7 +584,7 @@ EOF
 # ── i3 Autostart Script ──
 cat > "${I3_DIR}/autostart.sh" << 'EOF'
 #!/bin/bash
-# Sentinel OS i3 autostart
+# Sentinel OS i3 autostart — launches full platform
 
 # Kill existing polybar instances
 killall -q polybar
@@ -560,11 +596,56 @@ polybar sentinel 2>/dev/null &
 # Set wallpaper (solid dark background)
 xsetroot -solid '#0a0a14'
 
-# Launch terminal on first workspace (if not already running)
-sleep 1
-if ! pgrep -x alacritty >/dev/null; then
-    i3-msg 'workspace 1:INTEL; exec alacritty -e bash -c "echo -e \"\\033[0;32m\"; cat /usr/share/images/sentinel/splash.txt 2>/dev/null; echo -e \"\\033[0m\"; echo; echo \"  Welcome to Sentinel OS v1.0.0\"; echo \"  Type sentinel --help for CLI commands\"; echo; exec bash"'
+# ── Start Sentinel services if Docker is ready ──
+if command -v docker >/dev/null 2>&1 && systemctl is-active docker >/dev/null 2>&1; then
+    # Start the full stack if not already running
+    if ! docker compose -f /opt/sentinel/infrastructure/docker/docker-compose.yml ps --quiet 2>/dev/null | grep -q .; then
+        notify-send "Sentinel OS" "Starting services..." 2>/dev/null || true
+        sudo docker compose -f /opt/sentinel/infrastructure/docker/docker-compose.yml up -d 2>/dev/null &
+    fi
 fi
+
+# ── Start Ollama in background ──
+if command -v ollama >/dev/null 2>&1 && ! pgrep -x ollama >/dev/null; then
+    ollama serve 2>/dev/null &
+    sleep 2
+    ollama pull tinyllama 2>/dev/null &
+fi
+
+# ── Launch Sentinel Shell (Tauri HUD) as primary app ──
+sleep 2
+if command -v sentinel-shell >/dev/null 2>&1; then
+    # Launch on workspace 1 (INTEL) — fullscreen native app
+    i3-msg 'workspace 1:INTEL'
+    sentinel-shell 2>/dev/null &
+else
+    # Fallback: open terminal with status
+    i3-msg 'workspace 1:INTEL; exec alacritty -e bash -c "
+        echo -e \"\\033[0;32m\"
+        cat /usr/share/images/sentinel/splash.txt 2>/dev/null
+        echo -e \"\\033[0m\"
+        echo
+        echo \"  SENTINEL OS v1.0.0 — C4ISR Intelligence Platform\"
+        echo \"  ─────────────────────────────────────────────────\"
+        echo
+        echo \"  [!] Tauri shell binary not found.\"
+        echo \"      Build it with: cd /opt/sentinel/shell && npm run tauri build\"
+        echo
+        echo \"  Services: docker compose -f /opt/sentinel/infrastructure/docker/docker-compose.yml ps\"
+        echo \"  CLI:      sentinel --help\"
+        echo \"  API:      http://localhost:4000/graphql\"
+        echo
+        exec bash
+    "'
+fi
+
+# ── Open terminal on workspace 7 ──
+sleep 1
+i3-msg 'workspace 7:TERM; exec alacritty'
+
+# Switch back to primary workspace
+sleep 0.5
+i3-msg 'workspace 1:INTEL'
 EOF
 chmod +x "${I3_DIR}/autostart.sh"
 
@@ -625,10 +706,10 @@ label-urgent-padding = 1
 
 [module/sentinel-status]
 type = custom/script
-exec = echo "SENTINEL OS"
+exec = /home/sentinel/.config/polybar/sentinel-status.sh
 format-foreground = ${colors.primary}
 format-font = 2
-interval = 9999
+interval = 5
 
 [module/date]
 type = internal/date
@@ -676,6 +757,26 @@ label-low-foreground = ${colors.alert}
 screenchange-reload = true
 pseudo-transparency = false
 EOF
+
+# ── Polybar Status Script ──
+cat > "${POLYBAR_DIR}/sentinel-status.sh" << 'EOF'
+#!/bin/bash
+# Polybar module: show Sentinel OS service health
+RUNNING=$(docker ps --filter "name=sentinel" --format '{{.Names}}' 2>/dev/null | wc -l)
+TOTAL=13
+OLLAMA=""
+if pgrep -x ollama >/dev/null 2>&1; then
+    OLLAMA=" OLL:ON"
+else
+    OLLAMA=" OLL:OFF"
+fi
+if [ "$RUNNING" -gt 0 ]; then
+    echo "SENTINEL [${RUNNING}/${TOTAL}]${OLLAMA}"
+else
+    echo "SENTINEL [OFFLINE]${OLLAMA}"
+fi
+EOF
+chmod +x "${POLYBAR_DIR}/sentinel-status.sh"
 
 # ── Alacritty Terminal Configuration ──
 ALACRITTY_DIR="${OVERLAY_DIR}/home/sentinel/.config/alacritty"

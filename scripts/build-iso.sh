@@ -137,7 +137,7 @@ alacritty
 scrot
 xclip
 xdotool
-xsetroot
+x11-xserver-utils
 network-manager
 network-manager-gnome
 fonts-jetbrains-mono

@@ -319,12 +319,21 @@ curl -L https://istio.io/downloadIstio | bash - || echo "istioctl install skippe
 mv istio-*/bin/istioctl /usr/local/bin/ 2>/dev/null || true
 rm -rf istio-*
 
+# Clean apt cache and update to fix corrupted downloads
+apt-get clean 2>/dev/null || true
+apt-get update 2>/dev/null || true
+apt-get install --fix-broken -y 2>/dev/null || true
+
 # Install xorg server and drivers (broken deps on kali-rolling)
 apt-get install -y --no-install-recommends xserver-xorg-core xserver-xorg-input-libinput xserver-xorg-video-amdgpu xserver-xorg-video-nouveau xserver-xorg-video-vesa xserver-xorg-video-fbdev 2>/dev/null || true
 apt-get install -y wireshark-cli tshark wpasupplicant aircrack-ng 2>/dev/null || true
 
-# Install zeek from binary release (libc6 conflict in kali-rolling apt)
-curl -sSL https://download.zeek.org/zeek-6.2.1-x86_64-pkg-6ad388b9e4_linux.tar.gz -o /tmp/zeek.tar.gz 2>/dev/null && tar -xzf /tmp/zeek.tar.gz -C /opt && ln -sf /opt/zeek-*/bin/zeek /usr/local/bin/zeek 2>/dev/null || true
+# Install zeek from binary release (libc6 conflict in kali-rolling apt) with retry
+for i in 1 2; do
+  curl -sSL https://download.zeek.org/zeek-6.2.1-x86_64-pkg-6ad388b9e4_linux.tar.gz -o /tmp/zeek.tar.gz 2>/dev/null && tar -xzf /tmp/zeek.tar.gz -C /opt && ln -sf /opt/zeek-*/bin/zeek /usr/local/bin/zeek 2>/dev/null && break
+  echo "Retry $i for zeek download..."
+  rm -f /tmp/zeek.tar.gz
+done || true
 rm -f /tmp/zeek.tar.gz
 
 # Install SDR tools from source

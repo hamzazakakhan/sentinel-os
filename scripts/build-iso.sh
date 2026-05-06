@@ -382,10 +382,13 @@ groupadd -f autologin 2>/dev/null || true
 usermod -aG autologin,sudo,docker sentinel 2>/dev/null || true
 echo "sentinel:sentinel" | chpasswd 2>/dev/null || true
 
-# Fix ownership of sentinel user config files (placed by includes.chroot as root)
-if [ -d /home/sentinel/.config ]; then
-    chown -R sentinel:sentinel /home/sentinel/.config
-    echo "Fixed /home/sentinel/.config ownership"
+# Fix ownership of sentinel home directory and all config files
+# CRITICAL: includes.chroot copies files as root. Without this fix,
+# /home/sentinel is owned by root and Xorg cannot create .Xauthority,
+# causing LightDM to loop back to the login screen.
+if [ -d /home/sentinel ]; then
+    chown -R sentinel:sentinel /home/sentinel
+    echo "Fixed /home/sentinel ownership (was root, now sentinel:sentinel)"
 fi
 
 # Ensure i3 session is registered for LightDM

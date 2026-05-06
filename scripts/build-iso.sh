@@ -357,17 +357,29 @@ if [ -d "/opt/sentinel/shell" ]; then
   cd /opt/sentinel/shell
   npm install 2>/dev/null || true
 
-  # Build the frontend
-  npm run build 2>/dev/null || true
+  # Build the frontend (critical: Tauri needs this for webview content)
+  echo "Building Tauri frontend..."
+  npm run build 2>/dev/null
+  if [ ! -d "dist" ]; then
+    echo "WARNING: Frontend build failed, dist folder not found"
+  else
+    echo "Frontend build successful, dist folder created"
+  fi
 
   # Build the Tauri binary
   if [ -d "src-tauri" ]; then
     cd src-tauri
-    cargo build --release 2>/dev/null || true
+    echo "Building Tauri binary..."
+    cargo build --release 2>/dev/null
     # Install the built binary
     if [ -f "target/release/sentinel-shell" ]; then
       cp target/release/sentinel-shell /usr/local/bin/sentinel-shell
       chmod +x /usr/local/bin/sentinel-shell
+      # Copy dist folder to /usr/local/share so Tauri can find it
+      mkdir -p /usr/local/share/sentinel-shell
+      cp -r ../dist /usr/local/share/sentinel-shell/
+      # Set environment variable for Tauri to find the frontend
+      echo 'export SENTINEL_FRONTEND_PATH=/usr/local/share/sentinel-shell/dist' >> /etc/profile.d/sentinel-shell.sh 2>/dev/null || true
       echo "Sentinel Shell (Tauri) built and installed"
     else
       echo "WARNING: Tauri build did not produce binary, shell will not be available"

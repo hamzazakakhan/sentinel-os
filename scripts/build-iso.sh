@@ -122,7 +122,8 @@ mkdir -p config/package-lists
 
 # Base system packages
 cat > config/package-lists/base.list.chroot << 'EOF'
-# Sentinel OS base packages
+# Sentinel OS base packages (only guaranteed-available packages here)
+# Libraries and optional packages go in the chroot hook where failures are non-fatal
 kali-archive-keyring
 curl
 wget
@@ -140,18 +141,11 @@ xdotool
 x11-xserver-utils
 network-manager
 network-manager-gnome
-fonts-jetbrains-mono
 dbus-x11
-picom
-libwebkit2gtk-4.1-0
-libayatana-appindicator3-1
-librsvg2-2
-libnotify-bin
 linux-image-amd64
 linux-headers-amd64
 firmware-iwlwifi
 firmware-atheros
-# task-laptop pulls too many packages — install essentials separately
 # firmware-linux-nonfree/firmware-realtek conflicts with firmware-realtek-rtl8723cs-bt
 EOF
 
@@ -285,6 +279,25 @@ cat > config/hooks/normal/0200-install-extra-tools.hook.chroot << 'HOOKEOF'
 # NOTE: live-build runs hooks with /bin/sh (dash), ignoring the shebang.
 # Piped scripts that use bash syntax (helm, ollama, istio) must be piped to bash.
 # No set -e — individual commands use || true to avoid aborting the whole hook.
+
+# ── Install optional packages (may have different names on kali-rolling) ──
+# These are installed here instead of the package list so failures don't abort the build.
+# Try the standard name first, then the t64 variant (Debian time_t transition).
+install_pkg() {
+    apt-get install -y --no-install-recommends "$1" 2>/dev/null && return 0
+    # Try t64 variant (Debian 64-bit time_t migration renames libfoo-N to libfoo-Nt64)
+    apt-get install -y --no-install-recommends "${1}t64" 2>/dev/null && return 0
+    echo "WARNING: could not install $1 (or ${1}t64), skipping"
+    return 0
+}
+
+install_pkg fonts-jetbrains-mono
+install_pkg picom
+install_pkg libnotify-bin
+install_pkg librsvg2-2
+install_pkg libwebkit2gtk-4.1-0
+install_pkg libayatana-appindicator3-1
+install_pkg libgtk-3-0
 
 # Install kubectl
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" 2>/dev/null && chmod +x kubectl && mv kubectl /usr/local/bin/ || echo "kubectl install skipped"

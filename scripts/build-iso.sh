@@ -129,10 +129,20 @@ wget
 xserver-xorg-core
 lightdm
 i3-wm
+i3lock
+i3status
 polybar
 rofi
 alacritty
+scrot
+xclip
+xdotool
+xsetroot
 network-manager
+network-manager-gnome
+fonts-jetbrains-mono
+dbus-x11
+picom
 linux-image-amd64
 linux-headers-amd64
 firmware-iwlwifi
@@ -332,6 +342,28 @@ groupadd -f autologin 2>/dev/null || true
 usermod -aG autologin,sudo,docker sentinel 2>/dev/null || true
 echo "sentinel:sentinel" | chpasswd 2>/dev/null || true
 
+# Fix ownership of sentinel user config files (placed by includes.chroot as root)
+if [ -d /home/sentinel/.config ]; then
+    chown -R sentinel:sentinel /home/sentinel/.config
+    echo "Fixed /home/sentinel/.config ownership"
+fi
+
+# Ensure i3 session is registered for LightDM
+mkdir -p /usr/share/xsessions
+cat > /usr/share/xsessions/i3.desktop << 'XSESSION'
+[Desktop Entry]
+Name=i3
+Comment=improved dynamic tiling window manager
+Exec=i3
+TryExec=i3
+Type=Application
+XSESSION
+echo "Created i3 xsession desktop entry"
+
+# Enable LightDM as default display manager
+echo "/usr/sbin/lightdm" > /etc/X11/default-display-manager 2>/dev/null || true
+dpkg-reconfigure -f noninteractive lightdm 2>/dev/null || true
+
 # Mark docker-compose stack as ready if secrets were populated
 if [ -f /opt/sentinel/infrastructure/docker/.ready ]; then
   echo "Docker stack marked ready"
@@ -367,6 +399,390 @@ SENTINEL_AI_SERVICE=true
 SENTINEL_GEO_SERVICE=true
 SENTINEL_SIGINT_SERVICE=true
 EOF
+
+# ── i3 Window Manager Configuration ──
+log "Creating i3 and polybar configuration..."
+
+I3_DIR="${OVERLAY_DIR}/home/sentinel/.config/i3"
+mkdir -p "${I3_DIR}"
+cat > "${I3_DIR}/config" << 'EOF'
+# ══════════════════════════════════════════════════════════════
+# Sentinel OS — i3 Window Manager Configuration
+# ══════════════════════════════════════════════════════════════
+
+set $mod Mod4
+
+# Font
+font pango:JetBrains Mono 10
+
+# ── Window Appearance ──
+default_border pixel 2
+default_floating_border pixel 2
+gaps inner 6
+gaps outer 2
+smart_gaps on
+
+# Colors (military dark theme)
+# class                 border  backgr  text    indicator child_border
+client.focused          #00ff41 #1a1a2e #00ff41 #00ff41   #00ff41
+client.focused_inactive #333333 #0f0f1a #888888 #333333   #333333
+client.unfocused        #222222 #0a0a14 #555555 #222222   #222222
+client.urgent           #ff0000 #1a1a2e #ff0000 #ff0000   #ff0000
+
+# ── Key Bindings ──
+# Terminal
+bindsym $mod+Return exec alacritty
+bindsym $mod+Shift+Return exec alacritty --class floating_term
+
+# Application launcher
+bindsym $mod+d exec --no-startup-id rofi -show drun -theme sentinel
+bindsym $mod+Tab exec --no-startup-id rofi -show window -theme sentinel
+
+# Kill focused window
+bindsym $mod+Shift+q kill
+
+# Focus
+bindsym $mod+h focus left
+bindsym $mod+j focus down
+bindsym $mod+k focus up
+bindsym $mod+l focus right
+bindsym $mod+Left focus left
+bindsym $mod+Down focus down
+bindsym $mod+Up focus up
+bindsym $mod+Right focus right
+
+# Move
+bindsym $mod+Shift+h move left
+bindsym $mod+Shift+j move down
+bindsym $mod+Shift+k move up
+bindsym $mod+Shift+l move right
+bindsym $mod+Shift+Left move left
+bindsym $mod+Shift+Down move down
+bindsym $mod+Shift+Up move up
+bindsym $mod+Shift+Right move right
+
+# Split
+bindsym $mod+b split h
+bindsym $mod+v split v
+
+# Fullscreen
+bindsym $mod+f fullscreen toggle
+
+# Layout
+bindsym $mod+s layout stacking
+bindsym $mod+w layout tabbed
+bindsym $mod+e layout toggle split
+
+# Floating
+bindsym $mod+Shift+space floating toggle
+bindsym $mod+space focus mode_toggle
+floating_modifier $mod
+
+# ── Workspaces (military designations) ──
+set $ws1 "1:INTEL"
+set $ws2 "2:CYBER"
+set $ws3 "3:COMMS"
+set $ws4 "4:SIGINT"
+set $ws5 "5:SIM"
+set $ws6 "6:CRYPTO"
+set $ws7 "7:TERM"
+set $ws8 "8:MON"
+
+bindsym $mod+1 workspace $ws1
+bindsym $mod+2 workspace $ws2
+bindsym $mod+3 workspace $ws3
+bindsym $mod+4 workspace $ws4
+bindsym $mod+5 workspace $ws5
+bindsym $mod+6 workspace $ws6
+bindsym $mod+7 workspace $ws7
+bindsym $mod+8 workspace $ws8
+
+bindsym $mod+Shift+1 move container to workspace $ws1
+bindsym $mod+Shift+2 move container to workspace $ws2
+bindsym $mod+Shift+3 move container to workspace $ws3
+bindsym $mod+Shift+4 move container to workspace $ws4
+bindsym $mod+Shift+5 move container to workspace $ws5
+bindsym $mod+Shift+6 move container to workspace $ws6
+bindsym $mod+Shift+7 move container to workspace $ws7
+bindsym $mod+Shift+8 move container to workspace $ws8
+
+# ── Resize Mode ──
+mode "resize" {
+    bindsym h resize shrink width 5 px or 5 ppt
+    bindsym j resize grow height 5 px or 5 ppt
+    bindsym k resize shrink height 5 px or 5 ppt
+    bindsym l resize grow width 5 px or 5 ppt
+    bindsym Left resize shrink width 5 px or 5 ppt
+    bindsym Down resize grow height 5 px or 5 ppt
+    bindsym Up resize shrink height 5 px or 5 ppt
+    bindsym Right resize grow width 5 px or 5 ppt
+    bindsym Return mode "default"
+    bindsym Escape mode "default"
+}
+bindsym $mod+r mode "resize"
+
+# ── System Controls ──
+bindsym $mod+Shift+c reload
+bindsym $mod+Shift+r restart
+bindsym $mod+Shift+e exec "i3-nagbar -t warning -m 'Exit Sentinel OS?' -B 'Yes' 'i3-msg exit'"
+
+# Lock screen
+bindsym $mod+Shift+x exec i3lock -c 0a0a14 -e -f
+
+# Screenshot
+bindsym Print exec --no-startup-id scrot '/tmp/screenshot_%Y%m%d_%H%M%S.png' -e 'xclip -selection clipboard -t image/png -i $f'
+
+# ── Floating rules ──
+for_window [class="floating_term"] floating enable, resize set 900 600, move position center
+for_window [class="Rofi"] floating enable
+for_window [window_role="pop-up"] floating enable
+for_window [window_role="dialog"] floating enable
+
+# ── Autostart ──
+exec_always --no-startup-id $HOME/.config/i3/autostart.sh
+exec --no-startup-id nm-applet
+exec --no-startup-id xset s off -dpms
+exec --no-startup-id xsetroot -solid '#0a0a14'
+EOF
+
+# ── i3 Autostart Script ──
+cat > "${I3_DIR}/autostart.sh" << 'EOF'
+#!/bin/bash
+# Sentinel OS i3 autostart
+
+# Kill existing polybar instances
+killall -q polybar
+while pgrep -u $UID -x polybar >/dev/null; do sleep 0.5; done
+
+# Launch polybar
+polybar sentinel 2>/dev/null &
+
+# Set wallpaper (solid dark background)
+xsetroot -solid '#0a0a14'
+
+# Launch terminal on first workspace (if not already running)
+sleep 1
+if ! pgrep -x alacritty >/dev/null; then
+    i3-msg 'workspace 1:INTEL; exec alacritty -e bash -c "echo -e \"\\033[0;32m\"; cat /usr/share/images/sentinel/splash.txt 2>/dev/null; echo -e \"\\033[0m\"; echo; echo \"  Welcome to Sentinel OS v1.0.0\"; echo \"  Type sentinel --help for CLI commands\"; echo; exec bash"'
+fi
+EOF
+chmod +x "${I3_DIR}/autostart.sh"
+
+# ── Polybar Configuration ──
+POLYBAR_DIR="${OVERLAY_DIR}/home/sentinel/.config/polybar"
+mkdir -p "${POLYBAR_DIR}"
+cat > "${POLYBAR_DIR}/config.ini" << 'EOF'
+; ══════════════════════════════════════════════════════════════
+; Sentinel OS — Polybar Configuration
+; ══════════════════════════════════════════════════════════════
+
+[colors]
+background = #0a0a14
+background-alt = #1a1a2e
+foreground = #c0c0c0
+primary = #00ff41
+alert = #ff0000
+warning = #ffaa00
+disabled = #555555
+
+[bar/sentinel]
+width = 100%
+height = 24pt
+radius = 0
+background = ${colors.background}
+foreground = ${colors.foreground}
+line-size = 2pt
+border-size = 0
+padding-left = 1
+padding-right = 1
+module-margin = 1
+separator = |
+separator-foreground = ${colors.disabled}
+font-0 = "JetBrains Mono:size=10;2"
+font-1 = "JetBrains Mono:size=10:weight=bold;2"
+modules-left = i3 sentinel-status
+modules-center = date
+modules-right = network cpu memory battery
+cursor-click = pointer
+enable-ipc = true
+tray-position = right
+
+[module/i3]
+type = internal/i3
+pin-workspaces = true
+show-urgent = true
+strip-wsnumbers = false
+label-focused = %name%
+label-focused-background = ${colors.background-alt}
+label-focused-foreground = ${colors.primary}
+label-focused-underline = ${colors.primary}
+label-focused-padding = 1
+label-unfocused = %name%
+label-unfocused-padding = 1
+label-urgent = %name%
+label-urgent-background = ${colors.alert}
+label-urgent-padding = 1
+
+[module/sentinel-status]
+type = custom/script
+exec = echo "SENTINEL OS"
+format-foreground = ${colors.primary}
+format-font = 2
+interval = 9999
+
+[module/date]
+type = internal/date
+interval = 1
+date = %Y-%m-%d
+time = %H:%M:%S
+label = %date% %time%
+label-foreground = ${colors.foreground}
+
+[module/cpu]
+type = internal/cpu
+interval = 2
+label = CPU %percentage:2%%
+label-foreground = ${colors.primary}
+warn-percentage = 80
+
+[module/memory]
+type = internal/memory
+interval = 2
+label = MEM %percentage_used:2%%
+label-foreground = ${colors.primary}
+warn-percentage = 80
+
+[module/network]
+type = internal/network
+interface-type = wireless
+interval = 3
+label-connected = W:%essid%
+label-disconnected = W:OFF
+label-disconnected-foreground = ${colors.alert}
+
+[module/battery]
+type = internal/battery
+battery = BAT0
+adapter = ADP1
+full-at = 99
+low-at = 15
+label-charging = CHG %percentage%%
+label-discharging = BAT %percentage%%
+label-full = FULL %percentage%%
+label-low = LOW %percentage%%
+label-low-foreground = ${colors.alert}
+
+[settings]
+screenchange-reload = true
+pseudo-transparency = false
+EOF
+
+# ── Alacritty Terminal Configuration ──
+ALACRITTY_DIR="${OVERLAY_DIR}/home/sentinel/.config/alacritty"
+mkdir -p "${ALACRITTY_DIR}"
+cat > "${ALACRITTY_DIR}/alacritty.toml" << 'EOF'
+# Sentinel OS — Alacritty Terminal Configuration
+
+[window]
+opacity = 0.92
+padding = { x = 4, y = 4 }
+decorations = "None"
+
+[font]
+size = 11.0
+
+[font.normal]
+family = "JetBrains Mono"
+style = "Regular"
+
+[font.bold]
+family = "JetBrains Mono"
+style = "Bold"
+
+[colors.primary]
+background = "#0a0a14"
+foreground = "#c0c0c0"
+
+[colors.normal]
+black   = "#0a0a14"
+red     = "#ff0000"
+green   = "#00ff41"
+yellow  = "#ffaa00"
+blue    = "#0066ff"
+magenta = "#aa00ff"
+cyan    = "#00cccc"
+white   = "#c0c0c0"
+
+[colors.bright]
+black   = "#555555"
+red     = "#ff4444"
+green   = "#44ff77"
+yellow  = "#ffcc44"
+blue    = "#4488ff"
+magenta = "#cc44ff"
+cyan    = "#44ffff"
+white   = "#ffffff"
+EOF
+
+# ── Rofi Launcher Theme ──
+ROFI_DIR="${OVERLAY_DIR}/home/sentinel/.config/rofi"
+mkdir -p "${ROFI_DIR}"
+cat > "${ROFI_DIR}/sentinel.rasi" << 'EOF'
+* {
+    background:     #0a0a14;
+    foreground:     #c0c0c0;
+    border-color:   #00ff41;
+    accent:         #00ff41;
+}
+
+window {
+    width:          40%;
+    border:         2px;
+    border-color:   @border-color;
+    background-color: @background;
+}
+
+mainbox {
+    padding: 10px;
+}
+
+inputbar {
+    padding:    8px;
+    text-color: @accent;
+    background-color: #1a1a2e;
+    border: 0 0 2px 0;
+    border-color: @accent;
+}
+
+listview {
+    lines:      10;
+    padding:    8px 0;
+    background-color: transparent;
+}
+
+element {
+    padding: 6px;
+}
+
+element selected {
+    background-color: #1a1a2e;
+    text-color: @accent;
+}
+EOF
+cat > "${ROFI_DIR}/config.rasi" << 'EOF'
+configuration {
+    modi: "drun,run,window";
+    show-icons: false;
+    terminal: "alacritty";
+    font: "JetBrains Mono 11";
+}
+@theme "sentinel"
+EOF
+
+# ── Set ownership (will be applied by chroot hook) ──
+# We'll fix perms in the chroot hook since includes.chroot runs as root
+
+ok "Created i3, polybar, alacritty, and rofi configurations"
 
 # ── Lightdm: set i3 as default session for autologin ──
 mkdir -p "${OVERLAY_DIR}/etc/lightdm/lightdm.conf.d"

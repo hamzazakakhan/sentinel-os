@@ -68,7 +68,9 @@ lb config \
   --iso-publisher "Sentinel OS Project" \
   --iso-volume "SENTINEL_${VERSION}" \
   --memtest none \
-  --uefi-secure-boot disable
+  --uefi-secure-boot enable \
+  --bootloaders "grub-efi,syslinux" \
+  --linux-flavours amd64
 
 # Patch live-build's binary_iso to remove -isohybrid-mbr and -partition_offset 16
 # which trigger CHS geometry calculation limiting ISO to ~4.7 GB DVD size.
@@ -127,8 +129,16 @@ cat > config/package-lists/base.list.chroot << 'EOF'
 kali-archive-keyring
 curl
 wget
+# Display server (full xorg meta + input drivers)
+xserver-xorg
 xserver-xorg-core
+xserver-xorg-input-all
+xinit
+xfonts-base
+# Display manager + greeter (CRITICAL for GUI: 50-sentinel.conf references lightdm-gtk-greeter)
 lightdm
+lightdm-gtk-greeter
+# Window manager and tools
 i3-wm
 i3lock
 i3status
@@ -139,13 +149,26 @@ scrot
 xclip
 xdotool
 x11-xserver-utils
+# Boot splash (Plymouth) — graphical boot screen
+plymouth
+plymouth-themes
+plymouth-label
+# Network
 network-manager
 network-manager-gnome
 dbus-x11
+# Kernel + headers
 linux-image-amd64
 linux-headers-amd64
+# Firmware
 firmware-iwlwifi
 firmware-atheros
+# Secure Boot — Microsoft-signed shim + grub for HP/Dell/Lenovo UEFI
+shim-signed
+grub-efi-amd64-signed
+mokutil
+sbsigntool
+efibootmgr
 # firmware-linux-nonfree/firmware-realtek conflicts with firmware-realtek-rtl8723cs-bt
 EOF
 
@@ -284,17 +307,33 @@ cat > config/hooks/normal/0200-install-extra-tools.hook.chroot << 'HOOKEOF'
 # These are installed here instead of the package list so failures don't abort the build.
 # Try the standard name first, then the t64 variant (Debian time_t transition).
 install_pkg() {
-    apt-get install -y --no-install-recommends "$1" 2>/dev/null && return 0
+    # Try with --fix-missing to handle broken downloads
+    apt-get install -y --no-install-recommends --fix-missing "$1" 2>/dev/null && return 0
     # Try t64 variant (Debian 64-bit time_t migration renames libfoo-N to libfoo-Nt64)
-    apt-get install -y --no-install-recommends "${1}t64" 2>/dev/null && return 0
+    apt-get install -y --no-install-recommends --fix-missing "${1}t64" 2>/dev/null && return 0
+    # Last resort: clean cache and retry
+    apt-get clean 2>/dev/null
+    apt-get install -y --no-install-recommends --fix-missing "$1" 2>/dev/null && return 0
     echo "WARNING: could not install $1 (or ${1}t64), skipping"
     return 0
 }
 
+# CRITICAL: Clean apt cache and fix broken packages FIRST before any optional installs
+# This handles corrupted packages from base install (e.g., libgtk-3-0 broken pipe errors)
+echo ">>> Cleaning apt cache and fixing broken packages..."
+apt-get clean 2>/dev/null || true
+rm -rf /var/lib/apt/lists/* 2>/dev/null || true
+apt-get update 2>/dev/null || true
+dpkg --configure -a 2>/dev/null || true
+apt-get install --fix-broken -y 2>/dev/null || true
+apt-get install --fix-missing -y 2>/dev/null || true
+
 install_pkg fonts-jetbrains-mono
 install_pkg picom
+install_pkg feh
 install_pkg libnotify-bin
 install_pkg librsvg2-2
+install_pkg librsvg2-bin
 install_pkg libwebkit2gtk-4.1-0
 install_pkg libayatana-appindicator3-1
 install_pkg libgtk-3-0
@@ -319,13 +358,10 @@ curl -L https://istio.io/downloadIstio | bash - || echo "istioctl install skippe
 mv istio-*/bin/istioctl /usr/local/bin/ 2>/dev/null || true
 rm -rf istio-*
 
-# Clean apt cache and update to fix corrupted downloads
-apt-get clean 2>/dev/null || true
-apt-get update 2>/dev/null || true
-apt-get install --fix-broken -y 2>/dev/null || true
-
-# Install xorg server and drivers (broken deps on kali-rolling)
-apt-get install -y --no-install-recommends xserver-xorg-core xserver-xorg-input-libinput xserver-xorg-video-amdgpu xserver-xorg-video-nouveau xserver-xorg-video-vesa xserver-xorg-video-fbdev 2>/dev/null || true
+# Install xorg video drivers (input drivers in base list via xserver-xorg-input-all)
+apt-get install -y --no-install-recommends --fix-missing \
+  xserver-xorg-video-amdgpu xserver-xorg-video-nouveau \
+  xserver-xorg-video-intel xserver-xorg-video-vesa xserver-xorg-video-fbdev 2>/dev/null || true
 apt-get install -y wireshark-cli tshark wpasupplicant aircrack-ng 2>/dev/null || true
 
 # Install zeek from binary release (libc6 conflict in kali-rolling apt) with retry
@@ -632,8 +668,14 @@ while pgrep -u $UID -x polybar >/dev/null; do sleep 0.5; done
 # Launch polybar
 polybar sentinel 2>/dev/null &
 
-# Set wallpaper (solid dark background)
-xsetroot -solid '#0a0a14'
+# Set Sentinel OS wallpaper (fall back to solid dark if image missing)
+if [ -f /usr/share/backgrounds/sentinel-wallpaper.png ] && command -v feh >/dev/null 2>&1; then
+    feh --bg-fill /usr/share/backgrounds/sentinel-wallpaper.png 2>/dev/null &
+elif command -v nitrogen >/dev/null 2>&1 && [ -f /usr/share/backgrounds/sentinel-wallpaper.png ]; then
+    nitrogen --set-zoom-fill /usr/share/backgrounds/sentinel-wallpaper.png 2>/dev/null &
+else
+    xsetroot -solid '#0a0a14'
+fi
 
 # ── Start Sentinel services if Docker is ready ──
 if command -v docker >/dev/null 2>&1 && systemctl is-active docker >/dev/null 2>&1; then
@@ -1106,13 +1148,162 @@ cat > "${OVERLAY_DIR}/etc/lightdm/lightdm-gtk-greeter.conf" << 'EOF'
 [greeter]
 theme-name = Adwaita-dark
 icon-theme-name = Adwaita
-background = #0a0a14
-default-user-image = #sentinel
+background = /usr/share/backgrounds/sentinel-wallpaper.png
+default-user-image = /usr/share/images/sentinel/sentinel-logo.png
 clock-format = %Y-%m-%d %H:%M
 panel-position = top
+position = 50%,center 50%,center
+indicators = ~host;~spacer;~clock;~spacer;~session;~power
+font-name = JetBrains Mono 11
+xft-antialias = true
+xft-hintstyle = hintslight
+xft-rgba = rgb
 EOF
 
-ok "Sentinel OS branding applied (os-release, hostname, GRUB, ISOLINUX, LightDM, MOTD)"
+# ── Sentinel OS Wallpaper (used by LightDM, i3, GRUB) ──
+# Generate a SVG wallpaper that ImageMagick can convert at boot time
+mkdir -p "${OVERLAY_DIR}/usr/share/backgrounds"
+mkdir -p "${OVERLAY_DIR}/usr/share/images/sentinel"
+cat > "${OVERLAY_DIR}/usr/share/backgrounds/sentinel-wallpaper.svg" << 'WALLEOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#0a0a14"/>
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#00ff41" stroke-width="0.3" opacity="0.15"/>
+    </pattern>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <rect width="1920" height="1080" fill="url(#grid)"/>
+  <g transform="translate(960, 540)" text-anchor="middle" font-family="monospace" fill="#00ff41">
+    <text font-size="72" font-weight="bold" y="-20">SENTINEL OS</text>
+    <text font-size="24" y="30" opacity="0.7">C4ISR INTELLIGENCE PLATFORM</text>
+    <text font-size="16" y="70" opacity="0.4">v1.0.0 — CLASSIFICATION: UNCLASSIFIED</text>
+  </g>
+</svg>
+WALLEOF
+
+# ── Plymouth Boot Splash Theme (Sentinel OS branding) ──
+PLYMOUTH_DIR="${OVERLAY_DIR}/usr/share/plymouth/themes/sentinel"
+mkdir -p "${PLYMOUTH_DIR}"
+cat > "${PLYMOUTH_DIR}/sentinel.plymouth" << 'PLYEOF'
+[Plymouth Theme]
+Name=Sentinel OS
+Description=Sentinel OS C4ISR Boot Splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/sentinel
+ScriptFile=/usr/share/plymouth/themes/sentinel/sentinel.script
+PLYEOF
+
+cat > "${PLYMOUTH_DIR}/sentinel.script" << 'PLYSCRIPT'
+# Sentinel OS Plymouth boot splash
+Window.SetBackgroundTopColor(0.04, 0.04, 0.08);
+Window.SetBackgroundBottomColor(0.10, 0.10, 0.18);
+
+logo.image = Image("logo.png");
+logo.sprite = Sprite(logo.image);
+logo.sprite.SetX(Window.GetWidth() / 2 - logo.image.GetWidth() / 2);
+logo.sprite.SetY(Window.GetHeight() / 2 - logo.image.GetHeight() / 2);
+
+# Pulse animation
+fun refresh_callback() {
+    pulse = (Math.Cos(Plymouth.GetTime() * 2) + 1) / 4 + 0.5;
+    logo.sprite.SetOpacity(pulse);
+}
+Plymouth.SetRefreshFunction(refresh_callback);
+
+# Progress bar
+progress_box.image = Image.Text("[ INITIALIZING SENTINEL OS ]", 0, 1, 0.25);
+progress_box.sprite = Sprite(progress_box.image);
+progress_box.sprite.SetX(Window.GetWidth() / 2 - progress_box.image.GetWidth() / 2);
+progress_box.sprite.SetY(Window.GetHeight() / 2 + 200);
+
+# Status messages
+message_sprite = Sprite();
+message_sprite.SetPosition(50, Window.GetHeight() - 50, 10000);
+
+fun message_callback(text) {
+    my_image = Image.Text(text, 0, 1, 0.25);
+    message_sprite.SetImage(my_image);
+}
+Plymouth.SetMessageFunction(message_callback);
+PLYSCRIPT
+
+# Plymouth logo placeholder (will be generated from SVG by chroot hook)
+cat > "${PLYMOUTH_DIR}/logo.svg" << 'LOGOEOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120" viewBox="0 0 400 120">
+  <text x="200" y="70" text-anchor="middle" font-family="monospace" font-size="48" font-weight="bold" fill="#00ff41">SENTINEL OS</text>
+  <text x="200" y="100" text-anchor="middle" font-family="monospace" font-size="14" fill="#00ff41" opacity="0.7">C4ISR PLATFORM</text>
+</svg>
+LOGOEOF
+
+# ── Add hook to convert SVGs to PNG and install Plymouth theme ──
+# This runs in the chroot where ImageMagick/rsvg-convert is available
+mkdir -p config/hooks/normal
+cat > config/hooks/normal/0300-branding.hook.chroot << 'BRANDEOF'
+#!/bin/bash
+# Convert Sentinel OS SVG branding assets to PNG and activate Plymouth theme
+
+# Install conversion tool (try multiple options)
+apt-get install -y --no-install-recommends librsvg2-bin imagemagick 2>/dev/null || true
+
+# Convert wallpaper SVG -> PNG (1920x1080)
+if [ -f /usr/share/backgrounds/sentinel-wallpaper.svg ]; then
+  if command -v rsvg-convert >/dev/null 2>&1; then
+    rsvg-convert -w 1920 -h 1080 /usr/share/backgrounds/sentinel-wallpaper.svg \
+      -o /usr/share/backgrounds/sentinel-wallpaper.png 2>/dev/null || true
+  elif command -v convert >/dev/null 2>&1; then
+    convert -size 1920x1080 /usr/share/backgrounds/sentinel-wallpaper.svg \
+      /usr/share/backgrounds/sentinel-wallpaper.png 2>/dev/null || true
+  fi
+fi
+
+# Convert Plymouth logo SVG -> PNG
+if [ -f /usr/share/plymouth/themes/sentinel/logo.svg ]; then
+  if command -v rsvg-convert >/dev/null 2>&1; then
+    rsvg-convert -w 400 -h 120 /usr/share/plymouth/themes/sentinel/logo.svg \
+      -o /usr/share/plymouth/themes/sentinel/logo.png 2>/dev/null || true
+  elif command -v convert >/dev/null 2>&1; then
+    convert -size 400x120 /usr/share/plymouth/themes/sentinel/logo.svg \
+      /usr/share/plymouth/themes/sentinel/logo.png 2>/dev/null || true
+  fi
+fi
+
+# Sentinel logo for LightDM user image
+if [ -f /usr/share/plymouth/themes/sentinel/logo.png ]; then
+  cp /usr/share/plymouth/themes/sentinel/logo.png /usr/share/images/sentinel/sentinel-logo.png 2>/dev/null || true
+fi
+
+# Activate Plymouth theme
+if command -v plymouth-set-default-theme >/dev/null 2>&1; then
+  plymouth-set-default-theme sentinel 2>/dev/null || true
+  update-initramfs -u 2>/dev/null || true
+  echo "Plymouth theme set to sentinel"
+fi
+
+# Set GRUB background image
+if [ -f /usr/share/backgrounds/sentinel-wallpaper.png ]; then
+  cp /usr/share/backgrounds/sentinel-wallpaper.png /boot/grub/sentinel-bg.png 2>/dev/null || true
+fi
+
+echo "Sentinel OS branding assets installed"
+BRANDEOF
+chmod +x config/hooks/normal/0300-branding.hook.chroot
+
+# ── Update GRUB defaults to use Sentinel splash + theme ──
+cat >> "${OVERLAY_DIR}/etc/default/grub.d/sentinel.cfg" << 'EOF'
+GRUB_BACKGROUND="/boot/grub/sentinel-bg.png"
+GRUB_GFXMODE=1920x1080,1280x720,auto
+GRUB_THEME=""
+EOF
+
+ok "Sentinel OS branding applied (Plymouth, wallpaper, GRUB, LightDM, MOTD, os-release)"
 
 # ── Build ──
 log "Starting ISO build (this takes 20-60 minutes)..."

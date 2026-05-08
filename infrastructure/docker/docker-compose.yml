@@ -763,6 +763,105 @@ services:
           memory: 1G
           cpus: "0.5"
 
+  # ── C4ISR Tactical Services ──
+  tak-service:
+    <<: *service-defaults
+    build:
+      context: ../../services/tak-service
+      dockerfile: Dockerfile
+    hostname: tak-service
+    environment:
+      <<: *common-env
+      PORT: "8090"
+      COT_UDP_PORT: "4242"
+      COT_TCP_PORT: "8087"
+      COT_MCAST_GROUP: "239.2.3.1"
+    ports:
+      - "8090:8090"
+      - "4242:4242/udp"
+      - "8087:8087"
+    depends_on:
+      - kafka-1
+      - redis-cluster
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  threat-intel-service:
+    <<: *service-defaults
+    build:
+      context: ../../services/threat-intel-service
+      dockerfile: Dockerfile
+    hostname: threat-intel-service
+    environment:
+      <<: *common-env
+      PORT: "8091"
+      DATABASE_URL: postgres://sentinel:sentinel@postgres-primary:5432/sentinel
+    depends_on:
+      - kafka-1
+      - postgres-primary
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: "0.5"
+
+  mission-planning-service:
+    <<: *service-defaults
+    build:
+      context: ../../services/mission-planning-service
+      dockerfile: Dockerfile
+    hostname: mission-planning-service
+    environment:
+      <<: *common-env
+      PORT: "8092"
+      DATABASE_URL: postgres://sentinel:sentinel@postgres-primary:5432/sentinel
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: tinyllama
+    depends_on:
+      - kafka-1
+      - postgres-primary
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  space-awareness-service:
+    <<: *service-defaults
+    build:
+      context: ../../services/space-awareness-service
+      dockerfile: Dockerfile
+    hostname: space-awareness-service
+    environment:
+      <<: *common-env
+      PORT: "8093"
+      CONJUNCTION_KM: "10"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "0.5"
+
+  counter-uas-service:
+    <<: *service-defaults
+    build:
+      context: ../../services/counter-uas-service
+      dockerfile: Dockerfile
+    hostname: counter-uas-service
+    environment:
+      <<: *common-env
+      PORT: "8094"
+    depends_on:
+      - kafka-1
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+
   # ── Supporting Infrastructure ──
   mqtt-broker:
     <<: *service-defaults

@@ -20,8 +20,13 @@ import { SimulationRoom } from './panels/SimulationRoom';
 import { OsintBrowser } from './panels/OsintBrowser';
 import { PakistanFeed } from './panels/PakistanFeed';
 import { WeatherGeo } from './panels/WeatherGeo';
+import { BlueForceTracker } from './panels/BlueForceTracker';
+import { ThreatIntel } from './panels/ThreatIntel';
+import { MissionPlanner } from './panels/MissionPlanner';
+import { CounterUAS } from './panels/CounterUAS';
+import { SpaceSA } from './panels/SpaceSA';
 
-type Workspace = 'INTEL' | 'CYBER' | 'COMMS' | 'SIGINT' | 'MAP' | 'TERMINAL' | 'GEO' | 'PAKISTAN';
+type Workspace = 'INTEL' | 'CYBER' | 'COMMS' | 'SIGINT' | 'MAP' | 'TERMINAL' | 'GEO' | 'PAKISTAN' | 'BFT' | 'MITRE' | 'MISSION' | 'CUAS' | 'SPACE';
 
 interface SystemStatus {
   services_online: number;
@@ -36,11 +41,16 @@ const WORKSPACE_PANELS: Record<Workspace, { panels: string[]; layout: string }> 
   INTEL:    { panels: ['graph', 'cve', 'osint', 'reports'], layout: 'grid-cols-4' },
   CYBER:    { panels: ['cve', 'simulation'], layout: 'grid-cols-2' },
   COMMS:    { panels: ['terminal', 'encryption'], layout: 'grid-cols-2' },
-  SIGINT:   { panels: ['sigint', 'map'], layout: 'grid-cols-2' },
+  SIGINT:   { panels: ['sigint', 'cuas'], layout: 'grid-cols-2' },
   MAP:      { panels: ['map', 'weather'], layout: 'grid-cols-2' },
   TERMINAL: { panels: ['terminal'], layout: 'grid-cols-1' },
   GEO:      { panels: ['weather', 'map'], layout: 'grid-cols-2' },
   PAKISTAN: { panels: ['pakistan', 'osint'], layout: 'grid-cols-2' },
+  BFT:      { panels: ['bft'], layout: 'grid-cols-1' },
+  MITRE:    { panels: ['threatintel'], layout: 'grid-cols-1' },
+  MISSION:  { panels: ['mission'], layout: 'grid-cols-1' },
+  CUAS:     { panels: ['cuas', 'sigint'], layout: 'grid-cols-2' },
+  SPACE:    { panels: ['space'], layout: 'grid-cols-1' },
 };
 
 const THREAT_COLORS: Record<string, string> = {
@@ -116,6 +126,11 @@ export default function App() {
       case 'osint': return <OsintBrowser key="osint" />;
       case 'pakistan': return <PakistanFeed key="pakistan" />;
       case 'weather': return <WeatherGeo key="weather" />;
+      case 'bft': return <BlueForceTracker key="bft" />;
+      case 'threatintel': return <ThreatIntel key="threatintel" />;
+      case 'mission': return <MissionPlanner key="mission" />;
+      case 'cuas': return <CounterUAS key="cuas" />;
+      case 'space': return <SpaceSA key="space" />;
       default: return null;
     }
   };

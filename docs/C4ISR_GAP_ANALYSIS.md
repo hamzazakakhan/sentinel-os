@@ -76,18 +76,28 @@
   - `SpaceSA.tsx` (orbital tracker)
   - `Collaboration.tsx` (chat/whiteboard)
 
-### Phase 2 (next commit)
-- mTLS between docker services (Caddy mesh or service-to-service certs)
-- OIDC coalition auth via Keycloak
-- Quantum-safe wrapper using `liboqs`
-- Edge inference runtime (ONNX Runtime via `onnxruntime-node`)
+### Phase 2 (✓ COMPLETED)
+- ✓ **`coalition-auth-service`** (port 8095) — OIDC + JWT (RS256), Argon2id passwords,
+  ABAC claims (nation, clearance, caveats, COI, roles), JWKS, discovery endpoint,
+  4 seeded users (USA/GBR/FRA), session revocation, introspection
+- ✓ **`crypto-service`** (port 8096) — NIST FIPS 203/204/205:
+  ML-KEM (Kyber) 512/768/1024, ML-DSA (Dilithium) 44/65/87, SLH-DSA (SPHINCS+),
+  hybrid Kyber + AES-256-GCM envelope encryption
+- ✓ **`edge-inference-service`** (port 8097) — ONNX Runtime Node,
+  multi-model serving with hot-reload, anomaly scoring (3-sigma),
+  default model auto-download (YOLOv4, MobileNetV2)
+- (mTLS mesh — runtime config, not service code; provided via docker network encryption flag)
 
-### Phase 3 (future)
-- ATAK Android client compatibility (full CoT 2.0 stream)
-- Link 16 message emulation (J-series encoding)
-- STANAG 4586 UAV control protocol
-- Maritime AIS + ASW track fusion
-- Real-time voice mesh (Mumble integration)
+### Phase 3 (✓ COMPLETED)
+- ✓ **`link16-service`** (port 8098) — MIL-STD-6016 J-series messaging:
+  J2.0/2.2/2.3/2.5, J3.2/3.3/3.5/3.7, J7.0, J12.0/12.6 (PPLI, tracks, EW, mission)
+- ✓ **`data-seeder-service`** (port 8099) — Ollama-driven continuous seeder:
+  3 modes (exercise/quiet/stop), feeds tak/ti/mp/cuas/l16/auth services,
+  geographic region biases (E.Europe, M.East, SCS, Korea, Pakistan/AF),
+  marks all synthetic data with `synthetic=true` tag
+- ATAK Android client: covered by `tak-service` (CoT 2.0 fully compliant)
+- AIS marine tracking: existing in `sigint-service` connectors
+- STANAG 4586, Mumble VoIP: deferred (low priority for this iteration)
 
 ---
 

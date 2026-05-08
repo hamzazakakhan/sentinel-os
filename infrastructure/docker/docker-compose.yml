@@ -862,6 +862,108 @@ services:
           memory: 256M
           cpus: "0.25"
 
+  coalition-auth-service:
+    <<: *service-defaults
+    build:
+      context: ../../services/coalition-auth-service
+      dockerfile: Dockerfile
+    hostname: coalition-auth-service
+    environment:
+      <<: *common-env
+      PORT: "8095"
+      DATABASE_URL: postgres://sentinel:sentinel@postgres-primary:5432/sentinel
+      OIDC_ISSUER: http://coalition-auth-service:8095
+      TOKEN_TTL_SEC: "3600"
+    depends_on:
+      - postgres-primary
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  crypto-service:
+    <<: *service-defaults
+    build:
+      context: ../../services/crypto-service
+      dockerfile: Dockerfile
+    hostname: crypto-service
+    environment:
+      <<: *common-env
+      PORT: "8096"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  edge-inference-service:
+    <<: *service-defaults
+    build:
+      context: ../../services/edge-inference-service
+      dockerfile: Dockerfile
+    hostname: edge-inference-service
+    environment:
+      <<: *common-env
+      PORT: "8097"
+      MODEL_DIR: /models
+    volumes:
+      - edge-models:/models
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.0"
+
+  link16-service:
+    <<: *service-defaults
+    build:
+      context: ../../services/link16-service
+      dockerfile: Dockerfile
+    hostname: link16-service
+    environment:
+      <<: *common-env
+      PORT: "8098"
+    depends_on:
+      - kafka-1
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+
+  data-seeder-service:
+    <<: *service-defaults
+    build:
+      context: ../../services/data-seeder-service
+      dockerfile: Dockerfile
+    hostname: data-seeder-service
+    environment:
+      <<: *common-env
+      PORT: "8099"
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: tinyllama
+      SEED_MODE: quiet
+      TAK_URL:  http://tak-service:8090
+      TI_URL:   http://threat-intel-service:8091
+      MP_URL:   http://mission-planning-service:8092
+      SSA_URL:  http://space-awareness-service:8093
+      CUAS_URL: http://counter-uas-service:8094
+      AUTH_URL: http://coalition-auth-service:8095
+      L16_URL:  http://link16-service:8098
+    depends_on:
+      - tak-service
+      - threat-intel-service
+      - mission-planning-service
+      - counter-uas-service
+      - link16-service
+      - coalition-auth-service
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+
   # ── Supporting Infrastructure ──
   mqtt-broker:
     <<: *service-defaults
@@ -1067,6 +1169,7 @@ networks:
       encrypted: "true"
 
 volumes:
+  edge-models:
   zk-1-data:
   zk-1-log:
   zk-2-data:

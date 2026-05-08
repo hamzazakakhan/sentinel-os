@@ -153,3 +153,118 @@ INSERT INTO simulations (id, organization_id, name, description, scenario_type, 
   ('sim-001', 'org-bravo-002', 'Red Team Exercise: APT-28 Simulation', 'Simulate APT-28 TTP kill chain against network infrastructure', 'RED_TEAM', '{"targetNetwork":"10.0.0.0/16","ttps":["T1566","T1059","T1053","T1548","T1070","T1003","T1021","T1041"]}', 7200, 'COMPLETED', 'usr-adm-004', 'TOP_SECRET', NOW() - INTERVAL '7 days'),
   ('sim-002', 'org-alpha-001', 'Digital Twin: Base Defense Scenario', 'Full facility digital twin with simulated sensor feeds and threat actors', 'DIGITAL_TWIN', '{"centerLat":38.8977,"centerLon":-77.0365,"radius_km":2,"threat_actors":3}', 3600, 'COMPLETED', 'usr-cmd-001', 'SECRET', NOW() - INTERVAL '3 days'),
   ('sim-003', 'org-bravo-002', 'Purple Team: Ransomware Response', 'Combined attack/defense exercise simulating ransomware incident', 'PURPLE_TEAM', '{"attack_vector":"phishing","target":"finance_dept","encryption_speed":"fast"}', 5400, 'CREATED', 'usr-adm-004', 'SECRET', NOW() - INTERVAL '1 day');
+
+-- ──────────────────────────────────────────────────────────────
+-- C4ISR Service Tables (added 2026-05-08)
+-- ──────────────────────────────────────────────────────────────
+
+-- Threat Intelligence (managed by threat-intel-service)
+CREATE TABLE IF NOT EXISTS threat_indicators (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL,
+  value TEXT NOT NULL,
+  source TEXT NOT NULL,
+  confidence INT NOT NULL,
+  severity TEXT NOT NULL,
+  tags TEXT[] DEFAULT '{}',
+  mitre_techniques TEXT[] DEFAULT '{}',
+  description TEXT,
+  first_seen TIMESTAMPTZ NOT NULL,
+  last_seen TIMESTAMPTZ NOT NULL,
+  raw JSONB
+);
+CREATE INDEX IF NOT EXISTS idx_indicators_value ON threat_indicators(value);
+CREATE INDEX IF NOT EXISTS idx_indicators_type ON threat_indicators(type);
+CREATE INDEX IF NOT EXISTS idx_indicators_last_seen ON threat_indicators(last_seen DESC);
+
+CREATE TABLE IF NOT EXISTS mitre_techniques (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  tactic TEXT,
+  description TEXT,
+  platforms TEXT[],
+  data_sources TEXT[],
+  detection TEXT,
+  mitigation TEXT,
+  url TEXT
+);
+
+-- Mission Planning (managed by mission-planning-service)
+CREATE TABLE IF NOT EXISTS missions (
+  id TEXT PRIMARY KEY,
+  objective TEXT NOT NULL,
+  input JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS coas (
+  id TEXT PRIMARY KEY,
+  mission_id TEXT REFERENCES missions(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  route JSONB NOT NULL,
+  distance_km DOUBLE PRECISION,
+  eta_min DOUBLE PRECISION,
+  risk_score INT,
+  risk_factors TEXT[],
+  intersected_threats TEXT[],
+  narrative TEXT,
+  recommendation TEXT,
+  generated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Coalition Auth (managed by coalition-auth-service)
+CREATE TABLE IF NOT EXISTS oidc_keys (
+  kid TEXT PRIMARY KEY,
+  alg TEXT NOT NULL,
+  public_jwk JSONB NOT NULL,
+  private_pem TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS coalition_users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  nation TEXT NOT NULL,
+  clearance TEXT NOT NULL,
+  caveats TEXT[] DEFAULT '{}',
+  coi TEXT[] DEFAULT '{}',
+  roles TEXT[] DEFAULT '{}',
+  enabled BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  last_login TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS coalition_sessions (
+  jti UUID PRIMARY KEY,
+  user_id UUID REFERENCES coalition_users(id) ON DELETE CASCADE,
+  issued_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked BOOLEAN DEFAULT FALSE
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON coalition_sessions(user_id);
+
+-- Seed FVEY/NATO sample MITRE TTPs (subset; full set populated by service on startup)
+INSERT INTO mitre_techniques (id, name, tactic, description, platforms, url) VALUES
+  ('T1566.001', 'Spearphishing Attachment', 'initial-access', 'Adversaries may send spearphishing emails with a malicious attachment', ARRAY['Linux','macOS','Windows'], 'https://attack.mitre.org/techniques/T1566/001/'),
+  ('T1190',     'Exploit Public-Facing Application', 'initial-access', 'Adversaries may attempt to take advantage of a weakness in an Internet-facing computer or program', ARRAY['Linux','macOS','Windows','Network'], 'https://attack.mitre.org/techniques/T1190/'),
+  ('T1059.001', 'PowerShell', 'execution', 'Adversaries may abuse PowerShell commands and scripts for execution', ARRAY['Windows'], 'https://attack.mitre.org/techniques/T1059/001/'),
+  ('T1053.005', 'Scheduled Task', 'persistence', 'Adversaries may abuse the Windows Task Scheduler to perform task scheduling for initial or recurring execution', ARRAY['Windows'], 'https://attack.mitre.org/techniques/T1053/005/'),
+  ('T1486',     'Data Encrypted for Impact', 'impact', 'Ransomware encrypts files to disrupt availability of system and network resources', ARRAY['Linux','macOS','Windows'], 'https://attack.mitre.org/techniques/T1486/'),
+  ('T1003.001', 'LSASS Memory', 'credential-access', 'Adversaries may attempt to access credential material stored in LSASS process memory', ARRAY['Windows'], 'https://attack.mitre.org/techniques/T1003/001/'),
+  ('T1071.001', 'Web Protocols', 'command-and-control', 'Adversaries may communicate using application layer protocols like HTTP/S to evade detection', ARRAY['Linux','macOS','Windows'], 'https://attack.mitre.org/techniques/T1071/001/')
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed sample threat indicators (visible immediately in HUD without waiting for feed sync)
+INSERT INTO threat_indicators (id, type, value, source, confidence, severity, tags, description, first_seen, last_seen) VALUES
+  ('seed-ioc-001', 'ipv4',        '185.220.101.42',  'seed', 80, 'high',     ARRAY['tor','exit-node'],     'Known Tor exit node frequently used for malicious activity', NOW() - INTERVAL '7 days', NOW()),
+  ('seed-ioc-002', 'domain',      'evil-c2-server.xyz', 'seed', 90, 'critical', ARRAY['c2','apt'],          'Suspected APT C2 domain', NOW() - INTERVAL '3 days', NOW()),
+  ('seed-ioc-003', 'hash-sha256', 'abc1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcd', 'seed', 95, 'critical', ARRAY['malware','ransomware'], 'Known ransomware payload hash', NOW() - INTERVAL '2 days', NOW()),
+  ('seed-ioc-004', 'url',         'http://malicious.example.com/payload.exe', 'seed', 85, 'high', ARRAY['malware','dropper'], 'Known malware delivery URL', NOW() - INTERVAL '1 day', NOW()),
+  ('seed-ioc-005', 'ipv4',        '45.155.205.233',  'seed', 75, 'high',     ARRAY['scanning','recon'],    'IP performing scanning activity', NOW() - INTERVAL '6 hours', NOW())
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed sample mission to demonstrate planner
+INSERT INTO missions (id, objective, input, created_at) VALUES
+  ('seed-mission-001', 'Conduct ISR sweep of grid square Q-7 in northern sector',
+   '{"objective":"ISR sweep","start":{"lat":34.0,"lon":69.2},"end":{"lat":34.5,"lon":70.0},"asset_type":"air","asset_speed_kmh":400}'::jsonb,
+   NOW() - INTERVAL '1 hour')
+ON CONFLICT (id) DO NOTHING;
+
